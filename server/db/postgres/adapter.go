@@ -1,6 +1,3 @@
-//go:build postgres
-// +build postgres
-
 // Package postgres is a database adapter for PostgreSQL.
 package postgres
 
