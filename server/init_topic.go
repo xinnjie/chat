@@ -140,7 +140,8 @@ func initTopicMe(t *Topic, sreg *ClientComMessage) error {
 		// Log out the session
 		sreg.sess.uid = types.ZeroUid
 		return err
-	} else if user == nil {
+	}
+	if user == nil {
 		// Log out the session
 		sreg.sess.uid = types.ZeroUid
 		return types.ErrUserNotFound

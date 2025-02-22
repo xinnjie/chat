@@ -3,9 +3,9 @@ package push
 
 import (
 	"encoding/json"
-	"errors"
 	"time"
 
+	"github.com/tinode/chat/server/config"
 	t "github.com/tinode/chat/server/store/types"
 )
 
@@ -136,17 +136,12 @@ func Register(name string, hnd Handler) {
 }
 
 // Init initializes registered handlers.
-func Init(jsconfig json.RawMessage) ([]string, error) {
-	var config []configType
-
-	if err := json.Unmarshal(jsconfig, &config); err != nil {
-		return nil, errors.New("failed to parse config: " + err.Error())
-	}
+func Init(cfg []config.PushConfig) ([]string, error) {
 
 	var enabled []string
-	for _, cc := range config {
+	for _, cc := range cfg {
 		if hnd := handlers[cc.Name]; hnd != nil {
-			if ok, err := hnd.Init(cc.Config); err != nil {
+			if ok, err := hnd.Init(config.MustJsonRawMessage(cc.Config)); err != nil {
 				return nil, err
 			} else if ok {
 				enabled = append(enabled, cc.Name)

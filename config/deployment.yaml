@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tinode
+  labels:
+    app.kubernetes.io/name: tinode
+    app.kubernetes.io/instance: tinode
+  namespace: watchbeats
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: tinode
+      app.kubernetes.io/instance: tinode
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: tinode
+        app.kubernetes.io/instance: tinode
+    spec:
+      containers:
+        - name: tinode
+          args:
+            # disable static files serving
+            - "--static_data=-"
+          env:
+          # 配置模板: https://github.com/tinode/chat/blob/c0671ca62dbf6f68c3eb2afafb69cdda297c0b90/docker/tinode/config.template
+          # Doc: https://github.com/tinode/chat/blob/c0671ca62dbf6f68c3eb2afafb69cdda297c0b90/docker/tinode/config.template#L7
+            # - name: RESET_DB
+            #   value: "true"
+            - name: UPGRADE_DB
+              value: "true"
+            - name: STORE_USE_ADAPTER
+              value: "postgres"
+            - name: POSTGRES_DSN
+              value: postgresql://postgres:nujSam-7tevha-kitmyf@postgresql-tinode.watchbeats.svc.cluster.local/tinode
+            - name: DEFAULT_COUNTRY_CODE
+              value: "CN"
+            - name: UID_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: watchbeats-secrets
+                  key: TINODE_UID_ENCRYPTION_KEY
+            - name: DEBUG_EMAIL_VERIFICATION_CODE
+              value: "123456"
+          volumeMounts:
+            - name: config
+              mountPath: /etc/tinode/config
+              readOnly: true
+            - name: uploads
+              mountPath: /var/tinode/uploads
+          image: ko://github.com/tinode/chat/server
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: app
+              containerPort: 6060
+              protocol: TCP
+            - name: grpc
+              containerPort: 16060
+              protocol: TCP
+          resources:
+            # limits:
+            #   cpu: 1
+            #   memory: 500Mi
+            requests:
+              cpu: 200m
+              memory: 500Mi
+      volumes:
+        - name: config
+          configMap:
+            name: tinode-config
+        - name: uploads
+          emptyDir: {}

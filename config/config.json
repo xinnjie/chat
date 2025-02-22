@@ -1,0 +1,208 @@
+{
+	"listen": ":6060",
+	"api_path": "/",
+	"cache_control": 39600,
+	"static_mount": "/",
+	"grpc_listen": ":16060",
+	"grpc_keepalive_enabled": true,
+	"api_key_salt": "T713/rYYgW7g4m3vG6zGRh7+FM1t0T8j13koXScOAj4=",
+	"max_message_size": 4194304,
+	"max_subscriber_count": 128,
+	"max_tag_count": 16,
+	"expvar": "/stats/expvar/",
+	"server_status": "",
+	"use_x_forwarded_for": true,
+	"default_country_code": "US",
+
+	"media": {
+		"use_handler": "fs",
+		"max_size": 33554432,
+		"gc_period": 60,
+		"gc_block_size": 100,
+		"handlers": {
+			"fs": {
+				"upload_dir": "/var/tinode/uploads",
+				"cache_control": "max-age=86400",
+				"cors_origins": ["*"]
+			},
+			"s3":{
+				"access_key_id": "",
+				"secret_access_key": "",
+				"region": "",
+				"bucket": "",
+				"endpoint": "",
+				"presign_ttl": 3600,
+				"cache_control": "max-age=86400",
+				"cors_origins": ["*"]
+			}
+		}
+	},
+
+	"tls": {
+		"enabled": false,
+		"http_redirect": ":80",
+		"strict_max_age": 604800,
+		"autocert": {
+			"cache": "/etc/letsencrypt/live/",
+			"email": "",
+			"domains": [""]
+		}
+	},
+
+	"auth_config": {
+		"logical_names": [],
+		"basic": {
+			"add_to_tags": true,
+			"min_login_length": 3,
+			"min_password_length": 6
+		},
+		"token": {
+			"expire_in": 1209600,
+			"serial_num": 1,
+			"key": "wfaY2RgF2S1OQI/ZlK+LSrp1KB2jwAdGAIHQ7JZn+Kc="
+		},
+		"code": {
+			"expire_in": 900,
+			"max_retries": 3,
+			"code_length": 6
+		}
+	},
+
+	"store_config": {
+		"uid_key": "la6YsO+bNX/+XIkOqc5Svw==",
+		"max_results": 1024,
+		"use_adapter": "mysql",
+		"adapters": {
+			"mysql": {
+				"database": "tinode",
+				"dsn": "root@tcp(mysql)/tinode?parseTime=true&collation=utf8mb4_unicode_ci"
+			},
+			"postgres": {
+				"database": "tinode",
+				"dsn": "postgresql://postgres:postgres@localhost:5432/tinode?sslmode=disable"
+			},
+			"rethinkdb": {
+				"database": "tinode",
+				"addresses": "rethinkdb"
+			},
+			"mongodb": {
+				"database": "tinode",
+				"addresses": "mongodb",
+				"replica_set": "rs0"
+			}
+		}
+	},
+
+	"acc_validation": {
+		"email": {
+			"add_to_tags": true,
+			"required": [],
+			"config": {
+				"host_url": "http://localhost:6060",
+				"smtp_server": "",
+				"smtp_port": "",
+				"sender": "",
+				"login": "",
+				"sender_password": "",
+				"auth_mechanism": "",
+				"smtp_helo_host": "",
+				"languages": ["en", "es", "fr", "ru", "vi", "zh"],
+				"validation_templ": "./templ/email-validation-{{.Language}}.templ",
+				"reset_secret_templ": "./templ/email-password-reset-{{.Language}}.templ",
+				"max_retries": 3,
+				"domains": [],
+				"debug_response": ""
+			}
+		},
+
+		"tel": {
+			"add_to_tags": true,
+			"config": {
+				"host_url": "",
+				"languages": ["en", "es", "fr", "pt", "ru", "vi", "zh"],
+				"sender": "",
+				"universal_templ": "./templ/sms-universal-{{.Language}}.templ",
+				"max_retries": 3,
+				"debug_response": ""
+			}
+		}
+	},
+
+	"acc_gc_config": {
+		"enabled": false,
+		"gc_period": 3600,
+		"gc_block_size": 10,
+		"gc_min_account_age": 48
+	},
+
+	"push": [
+		{
+			"name":"tnpg",
+			"config": {
+				"enabled": false,
+				"token": "",
+				"org": ""
+			}
+		},
+		{
+			"name":"fcm",
+			"config": {
+				"enabled": false,
+				"project_id": "",
+				"credentials_file": "",
+				"time_to_live": 3600,
+				"android": {
+					"enabled": true,
+					"icon": "ic_logo_push",
+					"icon_color": "#3949AB",
+					"click_action": ".MessageActivity",
+					"msg": {
+						"title_loc_key": "new_message",
+						"title": "",
+						"body_loc_key": "",
+						"body": ""
+					},
+					"sub": {
+						"title_loc_key": "new_chat",
+						"body_loc_key": ""
+					}
+				}
+			}
+		}
+	],
+
+	"webrtc": {
+		"enabled": false,
+		"call_establishment_timeout": 30,
+		"ice_servers_file": ""
+	},
+
+	"cluster_config": {
+		"self": "",
+		"nodes": [
+			{"name": "tinode-0", "addr": "tinode-0:12000"},
+			{"name": "tinode-1", "addr": "tinode-1:12001"},
+			{"name": "tinode-2", "addr": "tinode-2:12002"}
+		],
+		"failover": {
+			"enabled": true,
+			"heartbeat": 100,
+			"vote_after": 8,
+			"node_fail_after": 16
+		}
+	},
+
+	"plugins": [
+		{
+			"enabled": false,
+			"name": "python_chat_bot",
+			"timeout": 20000,
+			"filters": {
+				"account": "C"
+			},
+			"failure_code": 0,
+			"failure_text": null,
+			"service_addr": "tcp://localhost:40051"
+		}
+	]
+}

@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/gob"
-	"encoding/json"
 	"errors"
 	"net"
 	"net/rpc"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/tinode/chat/server/auth"
 	"github.com/tinode/chat/server/concurrency"
+	"github.com/tinode/chat/server/config"
 	"github.com/tinode/chat/server/logs"
 	"github.com/tinode/chat/server/push"
 	rh "github.com/tinode/chat/server/ringhash"
@@ -46,22 +46,6 @@ const (
 	ProxyReqMeUserAgent
 	ProxyReqCall // Used in video call proxy sessions for routing call events.
 )
-
-type clusterNodeConfig struct {
-	Name string `json:"name"`
-	Addr string `json:"addr"`
-}
-
-type clusterConfig struct {
-	// List of all members of the cluster, including this member
-	Nodes []clusterNodeConfig `json:"nodes"`
-	// Name of this cluster node
-	ThisName string `json:"self"`
-	// Deprecated: this field is no longer used.
-	NumProxyEventGoRoutines int `json:"-"`
-	// Failover configuration
-	Failover *clusterFailoverConfig
-}
 
 // ClusterNode is a client's connection to another node.
 type ClusterNode struct {
@@ -925,7 +909,7 @@ func (c *Cluster) topicProxyGone(topicName string) error {
 }
 
 // Returns snowflake worker id.
-func clusterInit(configString json.RawMessage, self *string) int {
+func clusterInit(cfg config.ClusterConfig, self string) int {
 	if globals.cluster != nil {
 		logs.Err.Fatal("Cluster already initialized.")
 	}
@@ -940,20 +924,9 @@ func clusterInit(configString json.RawMessage, self *string) int {
 	// Number of nodes currently believed to be up.
 	statsRegisterInt("LiveClusterNodes")
 
-	// This is a standalone server, not initializing
-	if len(configString) == 0 {
-		logs.Info.Println("Cluster: running as a standalone server.")
-		return 1
-	}
-
-	var config clusterConfig
-	if err := json.Unmarshal(configString, &config); err != nil {
-		logs.Err.Fatal(err)
-	}
-
-	thisName := *self
+	thisName := self
 	if thisName == "" {
-		thisName = config.ThisName
+		thisName = cfg.ThisName
 	}
 
 	// Name of the current node is not specified: clustering disabled.
@@ -968,7 +941,7 @@ func clusterInit(configString json.RawMessage, self *string) int {
 	gob.Register(map[string]string{})
 	gob.Register(MsgAccessMode{})
 
-	if config.NumProxyEventGoRoutines != 0 {
+	if cfg.NumProxyEventGoRoutines != 0 {
 		logs.Warn.Println("Cluster config: field num_proxy_event_goroutines is deprecated.")
 	}
 
@@ -976,11 +949,11 @@ func clusterInit(configString json.RawMessage, self *string) int {
 		thisNodeName:    thisName,
 		fingerprint:     time.Now().Unix(),
 		nodes:           make(map[string]*ClusterNode),
-		proxyEventQueue: concurrency.NewGoRoutinePool(len(config.Nodes) * 5),
+		proxyEventQueue: concurrency.NewGoRoutinePool(len(cfg.Nodes) * 5),
 	}
 
 	var nodeNames []string
-	for _, host := range config.Nodes {
+	for _, host := range cfg.Nodes {
 		nodeNames = append(nodeNames, host.Name)
 
 		if host.Name == thisName {
@@ -1007,7 +980,7 @@ func clusterInit(configString json.RawMessage, self *string) int {
 		logs.Warn.Println("Cluster: use odd number of cluster nodes")
 	}
 
-	if !globals.cluster.failoverInit(config.Failover) {
+	if !globals.cluster.failoverInit(cfg.Failover) {
 		globals.cluster.rehash(nil)
 	}
 

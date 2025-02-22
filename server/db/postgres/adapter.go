@@ -142,6 +142,7 @@ func (a *adapter) Open(jsonconfig json.RawMessage) error {
 	if isMissingDb(err) {
 		// Missing DB is OK if we are initializing the database.
 		// Since tinode DB does not exist, connect without specifying the DB name.
+		// TODO(xinnjie) 当使用非 postgres 账户登录时, 依然会由于没有 postgres database 权限而无法连接
 		a.poolConfig.ConnConfig.Database = ""
 		a.db, err = pgxpool.ConnectConfig(ctx, a.poolConfig)
 	}

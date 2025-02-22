@@ -1,0 +1,21 @@
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: tinodechat-virtualservice
+  namespace: watchbeats
+spec:
+  hosts:
+    - "chat.xinnjiedev.com"
+    - "chat.dev.watchbeats.fun"
+    - "chat.watchbeats.fun"
+  gateways:
+    - istio-system/gateway
+  http:
+    - match:
+        - uri:
+            prefix: ''
+      route:
+        - destination:
+            host: tinode
+            port:
+              number: 6060

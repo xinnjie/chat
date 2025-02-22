@@ -4,8 +4,6 @@ package main
 
 import (
 	"crypto/tls"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"net"
 	"path/filepath"
@@ -19,6 +17,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/tinode/chat/server/auth"
+	"github.com/tinode/chat/server/config"
 	"github.com/tinode/chat/server/logs"
 	"github.com/tinode/chat/server/store"
 	"github.com/tinode/chat/server/store/types"
@@ -693,61 +692,31 @@ func platformFromUA(ua string) string {
 	return ""
 }
 
-func parseTLSConfig(tlsEnabled bool, jsconfig json.RawMessage) (*tls.Config, error) {
-	type tlsAutocertConfig struct {
-		// Domains to support by autocert
-		Domains []string `json:"domains"`
-		// Name of directory where auto-certificates are cached, e.g. /etc/letsencrypt/live/your-domain-here
-		CertCache string `json:"cache"`
-		// Contact email for letsencrypt
-		Email string `json:"email"`
-	}
+func parseTLSConfig(tlsEnabled bool, cfg config.TLSConfig) (*tls.Config, error) {
 
-	type tlsConfig struct {
-		// Flag enabling TLS
-		Enabled bool `json:"enabled"`
-		// Listen for connections on this address:port and redirect them to HTTPS port.
-		RedirectHTTP string `json:"http_redirect"`
-		// Enable Strict-Transport-Security by setting max_age > 0
-		StrictMaxAge int `json:"strict_max_age"`
-		// ACME autocert config, e.g. letsencrypt.org
-		Autocert *tlsAutocertConfig `json:"autocert"`
-		// If Autocert is not defined, provide file names of static certificate and key
-		CertFile string `json:"cert_file"`
-		KeyFile  string `json:"key_file"`
-	}
-
-	var config tlsConfig
-
-	if jsconfig != nil {
-		if err := json.Unmarshal(jsconfig, &config); err != nil {
-			return nil, errors.New("http: failed to parse tls_config: " + err.Error() + "(" + string(jsconfig) + ")")
-		}
-	}
-
-	if !tlsEnabled && !config.Enabled {
+	if !tlsEnabled && !cfg.Enabled {
 		return nil, nil
 	}
 
-	if config.StrictMaxAge > 0 {
-		globals.tlsStrictMaxAge = strconv.Itoa(config.StrictMaxAge)
+	if cfg.StrictMaxAge > 0 {
+		globals.tlsStrictMaxAge = strconv.Itoa(cfg.StrictMaxAge)
 	}
 
-	globals.tlsRedirectHTTP = config.RedirectHTTP
+	globals.tlsRedirectHTTP = cfg.RedirectHTTP
 
 	// If autocert is provided, use it.
-	if config.Autocert != nil {
+	if cfg.Autocert != nil {
 		certManager := autocert.Manager{
 			Prompt:     autocert.AcceptTOS,
-			HostPolicy: autocert.HostWhitelist(config.Autocert.Domains...),
-			Cache:      autocert.DirCache(config.Autocert.CertCache),
-			Email:      config.Autocert.Email,
+			HostPolicy: autocert.HostWhitelist(cfg.Autocert.Domains...),
+			Cache:      autocert.DirCache(cfg.Autocert.CertCache),
+			Email:      cfg.Autocert.Email,
 		}
 		return certManager.TLSConfig(), nil
 	}
 
 	// Otherwise try to use static keys.
-	cert, err := tls.LoadX509KeyPair(config.CertFile, config.KeyFile)
+	cert, err := tls.LoadX509KeyPair(cfg.CertFile, cfg.KeyFile)
 	if err != nil {
 		return nil, err
 	}

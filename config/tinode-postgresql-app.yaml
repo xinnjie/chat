@@ -1,0 +1,40 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: postgresql-tinode
+  namespace: argocd
+spec:
+  project: default
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: watchbeats
+  source:
+    chart: postgresql
+    repoURL: 'registry-1.docker.io/bitnamicharts'
+    targetRevision: 15.2.0
+    helm:
+      releaseName: postgresql-tinode
+      # values.yaml reference: https://github.com/bitnami/charts/blob/main/bitnami/postgresql/values.yaml
+      valuesObject:
+        primary:
+          # resourcesPreset https://github.com/bitnami/charts/blob/main/bitnami/common/templates/_resources.tpl#L15
+          resourcesPreset: "nano"
+          persistence:
+            existingClaim: "pg-tinode"
+          priorityClassName: "infra-critical"
+        auth:
+          enablePostgresUser: true
+          username: "tinode"
+          database: "tinode"
+          existingSecret: "watchbeats-secrets"
+          secretKeys:
+            adminPasswordKey: TINODE_PG_PASSWORD
+            userPasswordKey: TINODE_PASSWORD
+            replicationPasswordKey: TINODE_REPLICATION_PASSWORD
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions: # Sync options which modifies sync behavior
+      - CreateNamespace=false # Namespace Auto-Creation ensures that namespace specified as the application destination exists in the destination cluster.

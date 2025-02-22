@@ -714,7 +714,10 @@ func (s *Session) publish(msg *ClientComMessage) {
 			s.queueOut(ErrServiceUnavailableReply(msg, msg.Timestamp))
 			logs.Err.Println("s.publish: sub.broadcast channel full, topic ", msg.RcptTo, s.sid)
 		}
-	} else if msg.RcptTo == "sys" {
+		return
+	}
+
+	if msg.RcptTo == "sys" {
 		// Publishing to "sys" topic requires no subscription.
 		select {
 		case globals.hub.routeCli <- msg:
@@ -723,11 +726,12 @@ func (s *Session) publish(msg *ClientComMessage) {
 			s.queueOut(ErrServiceUnavailableReply(msg, msg.Timestamp))
 			logs.Err.Println("s.publish: hub.route channel full", s.sid)
 		}
-	} else {
-		// Publish request received without attaching to topic first.
-		s.queueOut(ErrAttachFirst(msg, msg.Timestamp))
-		logs.Warn.Printf("s.publish[%s]: must attach first %s", msg.RcptTo, s.sid)
+		return
 	}
+
+	// Publish request received without attaching to topic first.
+	s.queueOut(ErrAttachFirst(msg, msg.Timestamp))
+	logs.Warn.Printf("s.publish[%s]: must attach first %s", msg.RcptTo, s.sid)
 }
 
 // Client metadata

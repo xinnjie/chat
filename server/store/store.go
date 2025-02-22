@@ -2,12 +2,14 @@
 package store
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/tinode/chat/server/config"
 	"github.com/tinode/chat/server/logs"
 
 	"github.com/tinode/chat/server/auth"
@@ -24,30 +26,14 @@ var mediaHandler media.Handler
 // Unique ID generator
 var uGen types.UidGenerator
 
-type configType struct {
-	// 16-byte key for XTEA. Used to initialize types.UidGenerator.
-	UidKey []byte `json:"uid_key"`
-	// Maximum number of results to return from adapter.
-	MaxResults int `json:"max_results"`
-	// DB adapter name to use. Should be one of those specified in `Adapters`.
-	UseAdapter string `json:"use_adapter"`
-	// Configurations for individual adapters.
-	Adapters map[string]json.RawMessage `json:"adapters"`
-}
-
-func openAdapter(workerId int, jsonconf json.RawMessage) error {
-	var config configType
-	if err := json.Unmarshal(jsonconf, &config); err != nil {
-		return errors.New("store: failed to parse config: " + err.Error() + "(" + string(jsonconf) + ")")
-	}
-
+func openAdapter(workerId int, cfg config.StoreConfig) error {
 	if adp == nil {
-		if len(config.UseAdapter) > 0 {
+		if len(cfg.UseAdapter) > 0 {
 			// Adapter name specified explicitly.
-			if ad, ok := availableAdapters[config.UseAdapter]; ok {
+			if ad, ok := availableAdapters[cfg.UseAdapter]; ok {
 				adp = ad
 			} else {
-				return errors.New("store: " + config.UseAdapter + " adapter is not available in this binary")
+				return errors.New("store: " + cfg.UseAdapter + " adapter is not available in this binary")
 			}
 		} else if len(availableAdapters) == 1 {
 			// Default to the only entry in availableAdapters.
@@ -68,17 +54,21 @@ func openAdapter(workerId int, jsonconf json.RawMessage) error {
 		return errors.New("store: invalid worker ID")
 	}
 
-	if err := uGen.Init(uint(workerId), config.UidKey); err != nil {
+	uid, err := base64.StdEncoding.DecodeString(cfg.UidKey)
+	if err != nil {
+		return errors.New("store: invalid UID key in config: " + err.Error())
+	}
+	if err := uGen.Init(uint(workerId), uid); err != nil {
 		return errors.New("store: failed to init snowflake: " + err.Error())
 	}
 
-	if err := adp.SetMaxResults(config.MaxResults); err != nil {
+	if err := adp.SetMaxResults(cfg.MaxResults); err != nil {
 		return err
 	}
 
 	var adapterConfig json.RawMessage
-	if config.Adapters != nil {
-		adapterConfig = config.Adapters[adp.GetName()]
+	if cfg.Adapters != nil {
+		adapterConfig = config.MustJsonRawMessage(cfg.Adapters[adp.GetName()])
 	}
 
 	return adp.Open(adapterConfig)
@@ -86,15 +76,15 @@ func openAdapter(workerId int, jsonconf json.RawMessage) error {
 
 // PersistentStorageInterface defines methods used for interation with persistent storage.
 type PersistentStorageInterface interface {
-	Open(workerId int, jsonconf json.RawMessage) error
+	Open(workerId int, cfg config.StoreConfig) error
 	Close() error
 	IsOpen() bool
 	GetAdapter() adapter.Adapter
 	GetAdapterName() string
 	GetAdapterVersion() int
 	GetDbVersion() int
-	InitDb(jsonconf json.RawMessage, reset bool) error
-	UpgradeDb(jsonconf json.RawMessage) error
+	InitDb(cfg config.StoreConfig, reset bool) error
+	UpgradeDb(cfg config.StoreConfig) error
 	GetUid() types.Uid
 	GetUidString() string
 	DbStats() func() interface{}
@@ -115,8 +105,8 @@ type storeObj struct{}
 //
 //		name - name of the adapter rquested in the config file
 //	  jsonconf - configuration string
-func (storeObj) Open(workerId int, jsonconf json.RawMessage) error {
-	if err := openAdapter(workerId, jsonconf); err != nil {
+func (storeObj) Open(workerId int, cfg config.StoreConfig) error {
+	if err := openAdapter(workerId, cfg); err != nil {
 		return err
 	}
 
@@ -178,9 +168,9 @@ func (storeObj) GetDbVersion() int {
 // attempt to drop an existing database. If jsconf is nil it will assume that the adapter is
 // already open. If it's non-nil and the adapter is not open, it will use the config string
 // to open the adapter first.
-func (s storeObj) InitDb(jsonconf json.RawMessage, reset bool) error {
+func (s storeObj) InitDb(cfg config.StoreConfig, reset bool) error {
 	if !s.IsOpen() {
-		if err := openAdapter(1, jsonconf); err != nil {
+		if err := openAdapter(1, cfg); err != nil {
 			return err
 		}
 	}
@@ -190,9 +180,9 @@ func (s storeObj) InitDb(jsonconf json.RawMessage, reset bool) error {
 // UpgradeDb performes an upgrade of the database to the current adapter version.
 // If jsconf is nil it will assume that the adapter is already open. If it's non-nil and the
 // adapter is not open, it will use the config string to open the adapter first.
-func (s storeObj) UpgradeDb(jsonconf json.RawMessage) error {
+func (s storeObj) UpgradeDb(cfg config.StoreConfig) error {
 	if !s.IsOpen() {
-		if err := openAdapter(1, jsonconf); err != nil {
+		if err := openAdapter(1, cfg); err != nil {
 			return err
 		}
 	}

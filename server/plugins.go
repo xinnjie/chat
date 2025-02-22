@@ -3,12 +3,12 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"strings"
 	"time"
 
 	"github.com/tinode/chat/pbx"
+	"github.com/tinode/chat/server/config"
 	"github.com/tinode/chat/server/logs"
 	"github.com/tinode/chat/server/store/types"
 	"google.golang.org/grpc"
@@ -175,44 +175,6 @@ func ParsePluginFilter(s *string, filterBy int) (*PluginFilter, error) {
 	return &filter, nil
 }
 
-// PluginRPCFilterConfig filters for an individual RPC call. Filter strings are formatted as follows:
-// <comma separated list of packet names> ; <comma separated list of topics or topic types> ; <actions (combination of C U D)>
-// For instance:
-// "acc,login;;CU" - grab packets {acc} or {login}; no filtering by topic, Create or Update action
-// "pub,pres;me,p2p;"
-type pluginRPCFilterConfig struct {
-	// Filter by packet name, topic type [or exact name - not supported yet]. 2D: "pub,pres;p2p,me"
-	FireHose *string `json:"fire_hose"`
-
-	// Filter by CUD, [exact user name - not supported yet]. 1D: "C"
-	Account *string `json:"account"`
-	// Filter by CUD, topic type[, exact name]: "p2p;CU"
-	Topic *string `json:"topic"`
-	// Filter by CUD, topic type[, exact topic name, exact user name]: "CU"
-	Subscription *string `json:"subscription"`
-	// Filter by C.D, topic type[, exact topic name, exact user name]: "grp;CD"
-	Message *string `json:"message"`
-
-	// Call Find service, true or false
-	Find bool
-}
-
-type pluginConfig struct {
-	Enabled bool `json:"enabled"`
-	// Unique service name
-	Name string `json:"name"`
-	// Microseconds to wait before timeout
-	Timeout int64 `json:"timeout"`
-	// Filters for RPC calls: when to call vs when to skip the call
-	Filters pluginRPCFilterConfig `json:"filters"`
-	// What should the server do if plugin failed: HTTP error code
-	FailureCode int `json:"failure_code"`
-	// HTTP Error message to go with the code
-	FailureMessage string `json:"failure_text"`
-	// Address of plugin server of the form "tcp://localhost:123" or "unix://path_to_socket_file"
-	ServiceAddr string `json:"service_addr"`
-}
-
 // Plugin defines client-side parameters of a gRPC plugin.
 type Plugin struct {
 	name    string
@@ -233,22 +195,17 @@ type Plugin struct {
 	client pbx.PluginClient
 }
 
-func pluginsInit(configString json.RawMessage) {
+func pluginsInit(cfg []config.PluginConfig) {
 	// Check if any plugins are defined
-	if len(configString) == 0 {
+	if len(cfg) == 0 {
 		return
 	}
 
-	var config []pluginConfig
-	if err := json.Unmarshal(configString, &config); err != nil {
-		logs.Err.Fatal(err)
-	}
-
 	nameIndex := make(map[string]bool)
-	globals.plugins = make([]Plugin, len(config))
+	globals.plugins = make([]Plugin, len(cfg))
 	count := 0
-	for i := range config {
-		conf := &config[i]
+	for i := range cfg {
+		conf := &cfg[i]
 		if !conf.Enabled {
 			continue
 		}

@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/tinode/chat/server/config"
 	"github.com/tinode/chat/server/logs"
 )
 
@@ -38,17 +39,6 @@ type clusterFailover struct {
 	electionVote chan *ClusterVote
 	// Channel for stopping the failover runner.
 	done chan bool
-}
-
-type clusterFailoverConfig struct {
-	// Failover is enabled
-	Enabled bool `json:"enabled"`
-	// Time in milliseconds between heartbeats
-	Heartbeat int `json:"heartbeat"`
-	// Number of failed heartbeats before a leader election is initiated.
-	VoteAfter int `json:"vote_after"`
-	// Number of failures before a node is considered dead
-	NodeFailAfter int `json:"node_fail_after"`
 }
 
 // ClusterHealth is content of a leader's health check of a follower node.
@@ -85,8 +75,8 @@ type ClusterVote struct {
 	resp chan ClusterVoteResponse
 }
 
-func (c *Cluster) failoverInit(config *clusterFailoverConfig) bool {
-	if config == nil || !config.Enabled {
+func (c *Cluster) failoverInit(cfg config.ClusterFailoverConfig) bool {
+	if !cfg.Enabled {
 		return false
 	}
 	if len(c.nodes) < 2 {
@@ -105,15 +95,15 @@ func (c *Cluster) failoverInit(config *clusterFailoverConfig) bool {
 
 	// Random heartbeat ticker: 0.75 * config.HeartBeat + random(0, 0.5 * config.HeartBeat).
 	// The PRNG is initialized in main.go.
-	hb := time.Duration(config.Heartbeat) * time.Millisecond
+	hb := time.Duration(cfg.Heartbeat) * time.Millisecond
 	hb = (hb >> 1) + (hb >> 2) + time.Duration(rand.Intn(int(hb>>1)))
 
 	c.fo = &clusterFailover{
 		activeNodes:        activeNodes,
 		heartBeat:          hb,
-		voteTimeout:        config.VoteAfter,
-		nodeFailCountLimit: config.NodeFailAfter,
-		healthCheck:        make(chan *ClusterHealth, config.VoteAfter),
+		voteTimeout:        cfg.VoteAfter,
+		nodeFailCountLimit: cfg.NodeFailAfter,
+		healthCheck:        make(chan *ClusterHealth, cfg.VoteAfter),
 		electionVote:       make(chan *ClusterVote, len(c.nodes)),
 		done:               make(chan bool, 1),
 	}

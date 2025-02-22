@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/tinode/chat/server/config"
 	"github.com/tinode/chat/server/logs"
 	"github.com/tinode/chat/server/store/types"
 	jcr "github.com/tinode/jsonco"
@@ -46,25 +47,6 @@ const (
 	// Call is declined (the callee hung up before picking up).
 	constCallMsgDeclined = "declined"
 )
-
-type callConfig struct {
-	// Enable video/voice calls.
-	Enabled bool `json:"enabled"`
-	// Timeout in seconds before a call is dropped if not answered.
-	CallEstablishmentTimeout int `json:"call_establishment_timeout"`
-	// ICE servers.
-	ICEServers []iceServer `json:"ice_servers"`
-	// Alternative config as an external file.
-	ICEServersFile string `json:"ice_servers_file"`
-}
-
-// ICE server config.
-type iceServer struct {
-	Username       string   `json:"username,omitempty"`
-	Credential     string   `json:"credential,omitempty"`
-	CredentialType string   `json:"credential_type,omitempty"`
-	Urls           []string `json:"urls,omitempty"`
-}
 
 // callPartyData describes a video call participant.
 type callPartyData struct {
@@ -113,27 +95,17 @@ func callPartySession(sess *Session) *Session {
 	return sess
 }
 
-func initVideoCalls(jsconfig json.RawMessage) error {
-	var config callConfig
-
-	if len(jsconfig) == 0 {
-		return nil
-	}
-
-	if err := json.Unmarshal([]byte(jsconfig), &config); err != nil {
-		return fmt.Errorf("failed to parse config: %w", err)
-	}
-
-	if !config.Enabled {
+func initVideoCalls(cfg config.CallConfig) error {
+	if !cfg.Enabled {
 		logs.Info.Println("Video calls disabled")
 		return nil
 	}
 
-	if len(config.ICEServers) > 0 {
-		globals.iceServers = config.ICEServers
-	} else if config.ICEServersFile != "" {
-		var iceConfig []iceServer
-		file, err := os.Open(config.ICEServersFile)
+	if len(cfg.ICEServers) > 0 {
+		globals.iceServers = cfg.ICEServers
+	} else if cfg.ICEServersFile != "" {
+		var iceConfig []config.IceServer
+		file, err := os.Open(cfg.ICEServersFile)
 		if err != nil {
 			return fmt.Errorf("failed to read ICE config: %w", err)
 		}
@@ -162,7 +134,7 @@ func initVideoCalls(jsconfig json.RawMessage) error {
 		return errors.New("no valid ICE cervers found")
 	}
 
-	globals.callEstablishmentTimeout = config.CallEstablishmentTimeout
+	globals.callEstablishmentTimeout = cfg.CallEstablishmentTimeout
 	if globals.callEstablishmentTimeout <= 0 {
 		globals.callEstablishmentTimeout = defaultCallEstablishmentTimeout
 	}

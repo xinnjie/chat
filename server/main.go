@@ -11,7 +11,7 @@ package main
 //go:generate protoc --go_out=../pbx --go_opt=paths=source_relative --go-grpc_out=../pbx --go-grpc_opt=paths=source_relative ../pbx/model.proto
 
 import (
-	"encoding/json"
+	"encoding/base64"
 	"flag"
 	"math/rand"
 	"net/http"
@@ -23,9 +23,6 @@ import (
 
 	gh "github.com/gorilla/handlers"
 
-	// For stripping comments from JSON config
-	jcr "github.com/tinode/jsonco"
-
 	// Authenticators
 	"github.com/tinode/chat/server/auth"
 	_ "github.com/tinode/chat/server/auth/anon"
@@ -33,6 +30,7 @@ import (
 	_ "github.com/tinode/chat/server/auth/code"
 	_ "github.com/tinode/chat/server/auth/rest"
 	_ "github.com/tinode/chat/server/auth/token"
+	"github.com/tinode/chat/server/config"
 
 	// Database backends
 	_ "github.com/tinode/chat/server/db/mongodb"
@@ -195,7 +193,7 @@ var globals struct {
 	callEstablishmentTimeout int
 
 	// ICE servers config (video calling)
-	iceServers []iceServer
+	iceServers []config.IceServer
 
 	// Websocket per-message compression negotiation is enabled.
 	wsCompression bool
@@ -205,111 +203,13 @@ var globals struct {
 	servingAt string
 }
 
-// Credential validator config.
-type validatorConfig struct {
-	// TRUE or FALSE to set
-	AddToTags bool `json:"add_to_tags"`
-	//  Authentication level which triggers this validator: "auth", "anon"... or ""
-	Required []string `json:"required"`
-	// Validator params passed to validator unchanged.
-	Config json.RawMessage `json:"config"`
-}
-
-// Stale unvalidated user account GC config.
-type accountGcConfig struct {
-	Enabled bool `json:"enabled"`
-	// How often to run GC (seconds).
-	GcPeriod int `json:"gc_period"`
-	// Number of accounts to delete in one pass.
-	GcBlockSize int `json:"gc_block_size"`
-	// Minimum hours since account was last modified.
-	GcMinAccountAge int `json:"gc_min_account_age"`
-}
-
-// Large file handler config.
-type mediaConfig struct {
-	// The name of the handler to use for file uploads.
-	UseHandler string `json:"use_handler"`
-	// Maximum allowed size of an uploaded file
-	MaxFileUploadSize int64 `json:"max_size"`
-	// Garbage collection timeout
-	GcPeriod int `json:"gc_period"`
-	// Number of entries to delete in one pass
-	GcBlockSize int `json:"gc_block_size"`
-	// Individual handler config params to pass to handlers unchanged.
-	Handlers map[string]json.RawMessage `json:"handlers"`
-}
-
-// Contentx of the configuration file
-type configType struct {
-	// HTTP(S) address:port to listen on for websocket and long polling clients. Either a
-	// numeric or a canonical name, e.g. ":80" or ":https". Could include a host name, e.g.
-	// "localhost:80".
-	// Could be blank: if TLS is not configured, will use ":80", otherwise ":443".
-	// Can be overridden from the command line, see option --listen.
-	Listen string `json:"listen"`
-	// Base URL path where the streaming and large file API calls are served, default is '/'.
-	// Can be overridden from the command line, see option --api_path.
-	ApiPath string `json:"api_path"`
-	// Cache-Control value for static content.
-	CacheControl int `json:"cache_control"`
-	// If true, do not attempt to negotiate websocket per message compression (RFC 7692.4).
-	// It should be disabled (set to true) if you are using MSFT IIS as a reverse proxy.
-	WSCompressionDisabled bool `json:"ws_compression_disabled"`
-	// Address:port to listen for gRPC clients. If blank gRPC support will not be initialized.
-	// Could be overridden from the command line with --grpc_listen.
-	GrpcListen string `json:"grpc_listen"`
-	// Enable handling of gRPC keepalives https://github.com/grpc/grpc/blob/master/doc/keepalive.md
-	// This sets server's GRPC_ARG_KEEPALIVE_TIME_MS to 60 seconds instead of the default 2 hours.
-	GrpcKeepalive bool `json:"grpc_keepalive_enabled"`
-	// URL path for mounting the directory with static files (usually TinodeWeb).
-	StaticMount string `json:"static_mount"`
-	// Local path to static files. All files in this path are made accessible by HTTP.
-	StaticData string `json:"static_data"`
-	// Salt used in signing API keys
-	APIKeySalt []byte `json:"api_key_salt"`
-	// Maximum message size allowed from client. Intended to prevent malicious client from sending
-	// very large files inband (does not affect out of band uploads).
-	MaxMessageSize int `json:"max_message_size"`
-	// Maximum number of group topic subscribers.
-	MaxSubscriberCount int `json:"max_subscriber_count"`
-	// Masked tags: tags immutable on User (mask), mutable on Topic only within the mask.
-	MaskedTagNamespaces []string `json:"masked_tags"`
-	// Maximum number of indexable tags.
-	MaxTagCount int `json:"max_tag_count"`
-	// If true, ordinary users cannot delete their accounts.
-	PermanentAccounts bool `json:"permanent_accounts"`
-	// URL path for exposing runtime stats. Disabled if the path is blank.
-	ExpvarPath string `json:"expvar"`
-	// URL path for internal server status. Disabled if the path is blank.
-	ServerStatusPath string `json:"server_status"`
-	// Take IP address of the client from HTTP header 'X-Forwarded-For'.
-	// Useful when tinode is behind a proxy. If missing, fallback to default RemoteAddr.
-	UseXForwardedFor bool `json:"use_x_forwarded_for"`
-	// 2-letter country code (ISO 3166-1 alpha-2) to assign to sessions by default
-	// when the country isn't specified by the client explicitly and
-	// it's impossible to infer it.
-	DefaultCountryCode string `json:"default_country_code"`
-
-	// Configs for subsystems
-	Cluster   json.RawMessage             `json:"cluster_config"`
-	Plugin    json.RawMessage             `json:"plugins"`
-	Store     json.RawMessage             `json:"store_config"`
-	Push      json.RawMessage             `json:"push"`
-	TLS       json.RawMessage             `json:"tls"`
-	Auth      map[string]json.RawMessage  `json:"auth_config"`
-	Validator map[string]*validatorConfig `json:"acc_validation"`
-	AccountGC *accountGcConfig            `json:"acc_gc_config"`
-	Media     *mediaConfig                `json:"media"`
-	WebRTC    json.RawMessage             `json:"webrtc"`
-}
-
 func main() {
 	executable, _ := os.Executable()
 
 	logFlags := flag.String("log_flags", "stdFlags",
 		"Comma-separated list of log flags (as defined in https://golang.org/pkg/log/#pkg-constants without the L prefix)")
-	configfile := flag.String("config", "tinode.conf", "Path to config file.")
+	// TODO(xinnjie): integrate viper with command line, may using cobra or pflag instead of std flag
+	_ = flag.String("config", "tinode.conf", "Path to config file.")
 	// Path to static content.
 	staticPath := flag.String("static_data", defaultStaticPath, "File path to directory with static files to be served.")
 	listenOn := flag.String("listen", "", "Override address and port to listen on for HTTP(S) clients.")
@@ -335,33 +235,13 @@ func main() {
 		currentVersion, executable, buildstamp,
 		os.Getpid(), runtime.GOMAXPROCS(runtime.NumCPU()))
 
-	*configfile = toAbsolutePath(curwd, *configfile)
-	logs.Info.Printf("Using config from '%s'", *configfile)
+	// *configfile = toAbsolutePath(curwd, *configfile)
+	// logs.Info.Printf("Using config from '%s'", *configfile)
 
-	var config configType
-	if file, err := os.Open(*configfile); err != nil {
-		logs.Err.Fatal("Failed to read config file: ", err)
-	} else {
-		jr := jcr.New(file)
-		if err = json.NewDecoder(jr).Decode(&config); err != nil {
-			switch jerr := err.(type) {
-			case *json.UnmarshalTypeError:
-				lnum, cnum, _ := jr.LineAndChar(jerr.Offset)
-				logs.Err.Fatalf("Unmarshall error in config file in %s at %d:%d (offset %d bytes): %s",
-					jerr.Field, lnum, cnum, jerr.Offset, jerr.Error())
-			case *json.SyntaxError:
-				lnum, cnum, _ := jr.LineAndChar(jerr.Offset)
-				logs.Err.Fatalf("Syntax error in config file at %d:%d (offset %d bytes): %s",
-					lnum, cnum, jerr.Offset, jerr.Error())
-			default:
-				logs.Err.Fatal("Failed to parse config file: ", err)
-			}
-		}
-		file.Close()
-	}
+	cfg := config.FromViper()
 
 	if *listenOn != "" {
-		config.Listen = *listenOn
+		cfg.Listen = *listenOn
 	}
 
 	// Set up HTTP server. Must use non-default mux because of expvar.
@@ -370,7 +250,7 @@ func main() {
 	// Exposing values for statistics and monitoring.
 	evpath := *expvarPath
 	if evpath == "" {
-		evpath = config.ExpvarPath
+		evpath = cfg.ExpvarPath
 	}
 	statsInit(mux, evpath)
 	statsRegisterInt("Version")
@@ -388,7 +268,7 @@ func main() {
 
 	// Initialize cluster and receive calculated workerId.
 	// Cluster won't be started here yet.
-	workerId := clusterInit(config.Cluster, clusterSelf)
+	workerId := clusterInit(cfg.Cluster, *clusterSelf)
 
 	if *pprofFile != "" {
 		*pprofFile = toAbsolutePath(curwd, *pprofFile)
@@ -412,8 +292,8 @@ func main() {
 		logs.Info.Printf("Profiling info saved to '%s.(cpu|mem)'", *pprofFile)
 	}
 
-	err = store.Store.Open(workerId, config.Store)
-	logs.Info.Println("DB adapter", store.Store.GetAdapterName(), store.Store.GetAdapterVersion())
+	err = store.Store.Open(workerId, cfg.StoreConfig)
+	logs.Info.Printf("DB adapter: %s, apdapter version: %s", store.Store.GetAdapterName(), store.Store.GetAdapterVersion())
 	if err != nil {
 		logs.Err.Fatal("Failed to connect to DB: ", err)
 	}
@@ -425,9 +305,12 @@ func main() {
 	statsRegisterDbStats()
 
 	// API key signing secret
-	globals.apiKeySalt = config.APIKeySalt
+	globals.apiKeySalt, err = base64.StdEncoding.DecodeString(cfg.APIKeySalt)
+	if err != nil {
+		logs.Err.Fatal("Failed to decode API key salt in config: ", cfg.APIKeySalt, err)
+	}
 
-	err = store.InitAuthLogicalNames(config.Auth["logical_names"])
+	err = store.InitAuthLogicalNames(config.MustJsonRawMessage(cfg.Auth["logical_names"]))
 	if err != nil {
 		logs.Err.Fatal(err)
 	}
@@ -440,8 +323,8 @@ func main() {
 	for _, name := range authNames {
 		if authhdl := store.Store.GetLogicalAuthHandler(name); authhdl == nil {
 			logs.Err.Fatalln("Unknown authenticator", name)
-		} else if jsconf := config.Auth[authhdl.GetRealName()]; jsconf != nil {
-			if err := authhdl.Init(jsconf, name); err != nil {
+		} else if jsconf := cfg.Auth[authhdl.GetRealName()]; jsconf != nil {
+			if err := authhdl.Init(config.MustJsonRawMessage(jsconf), name); err != nil {
 				logs.Err.Fatalln("Failed to init auth scheme", name+":", err)
 			}
 			tags, err := authhdl.RestrictedTags()
@@ -458,7 +341,7 @@ func main() {
 	}
 
 	// Process validators.
-	for name, vconf := range config.Validator {
+	for name, vconf := range cfg.Validator {
 		// Check if validator is restrictive. If so, add validator name to the list of restricted tags.
 		// The namespace can be restricted even if the validator is disabled.
 		if vconf.AddToTags {
@@ -488,7 +371,7 @@ func main() {
 
 		if val := store.Store.GetValidator(name); val == nil {
 			logs.Err.Fatal("Config provided for an unknown validator '" + name + "'")
-		} else if err = val.Init(string(vconf.Config)); err != nil {
+		} else if err = val.Init(string(config.MustJsonRawMessage(vconf.Config))); err != nil {
 			logs.Err.Fatal("Failed to init validator '"+name+"': ", err)
 		}
 		if globals.validators == nil {
@@ -509,8 +392,8 @@ func main() {
 	}
 
 	// Partially restricted tag namespaces.
-	globals.maskedTagNS = make(map[string]bool, len(config.MaskedTagNamespaces))
-	for _, tag := range config.MaskedTagNamespaces {
+	globals.maskedTagNS = make(map[string]bool, len(cfg.MaskedTagNamespaces))
+	for _, tag := range cfg.MaskedTagNamespaces {
 		if strings.Contains(tag, ":") {
 			logs.Err.Fatal("masked_tags namespaces should not contain character ':'", tag)
 		}
@@ -533,49 +416,49 @@ func main() {
 	}
 
 	// Maximum message size
-	globals.maxMessageSize = int64(config.MaxMessageSize)
+	globals.maxMessageSize = int64(cfg.MaxMessageSize)
 	if globals.maxMessageSize <= 0 {
 		globals.maxMessageSize = defaultMaxMessageSize
 	}
 	// Maximum number of group topic subscribers
-	globals.maxSubscriberCount = config.MaxSubscriberCount
+	globals.maxSubscriberCount = cfg.MaxSubscriberCount
 	if globals.maxSubscriberCount <= 1 {
 		globals.maxSubscriberCount = defaultMaxSubscriberCount
 	}
 	// Maximum number of indexable tags per user or topics
-	globals.maxTagCount = config.MaxTagCount
+	globals.maxTagCount = cfg.MaxTagCount
 	if globals.maxTagCount <= 0 {
 		globals.maxTagCount = defaultMaxTagCount
 	}
 	// If account deletion is disabled.
-	globals.permanentAccounts = config.PermanentAccounts
+	globals.permanentAccounts = cfg.PermanentAccounts
 
-	globals.useXForwardedFor = config.UseXForwardedFor
-	globals.defaultCountryCode = config.DefaultCountryCode
+	globals.useXForwardedFor = cfg.UseXForwardedFor
+	globals.defaultCountryCode = cfg.DefaultCountryCode
 	if globals.defaultCountryCode == "" {
 		globals.defaultCountryCode = defaultCountryCode
 	}
 
 	// Websocket compression.
-	globals.wsCompression = !config.WSCompressionDisabled
+	globals.wsCompression = !cfg.WSCompressionDisabled
 
-	if config.Media != nil {
-		if config.Media.UseHandler == "" {
-			config.Media = nil
+	if cfg.Media != nil {
+		if cfg.Media.UseHandler == "" {
+			cfg.Media = nil
 		} else {
-			globals.maxFileUploadSize = config.Media.MaxFileUploadSize
-			if config.Media.Handlers != nil {
+			globals.maxFileUploadSize = cfg.Media.MaxFileUploadSize
+			if cfg.Media.Handlers != nil {
 				var conf string
-				if params := config.Media.Handlers[config.Media.UseHandler]; params != nil {
-					conf = string(params)
+				if params := cfg.Media.Handlers[cfg.Media.UseHandler]; params != nil {
+					conf = string(config.MustJsonRawMessage(params))
 				}
-				if err = store.Store.UseMediaHandler(config.Media.UseHandler, conf); err != nil {
-					logs.Err.Fatalf("Failed to init media handler '%s': %s", config.Media.UseHandler, err)
+				if err = store.Store.UseMediaHandler(cfg.Media.UseHandler, conf); err != nil {
+					logs.Err.Fatalf("Failed to init media handler '%s': %s", cfg.Media.UseHandler, err)
 				}
 			}
-			if config.Media.GcPeriod > 0 && config.Media.GcBlockSize > 0 {
-				globals.mediaGcPeriod = time.Second * time.Duration(config.Media.GcPeriod)
-				stopFilesGc := largeFileRunGarbageCollection(globals.mediaGcPeriod, config.Media.GcBlockSize)
+			if cfg.Media.GcPeriod > 0 && cfg.Media.GcBlockSize > 0 {
+				globals.mediaGcPeriod = time.Second * time.Duration(cfg.Media.GcPeriod)
+				stopFilesGc := largeFileRunGarbageCollection(globals.mediaGcPeriod, cfg.Media.GcBlockSize)
 				defer func() {
 					stopFilesGc <- true
 					logs.Info.Println("Stopped files garbage collector")
@@ -585,13 +468,13 @@ func main() {
 	}
 
 	// Stale unvalidated user account garbage collection.
-	if config.AccountGC != nil && config.AccountGC.Enabled {
-		if config.AccountGC.GcPeriod <= 0 || config.AccountGC.GcBlockSize <= 0 ||
-			config.AccountGC.GcMinAccountAge <= 0 {
+	if cfg.AccountGC != nil && cfg.AccountGC.Enabled {
+		if cfg.AccountGC.GcPeriod <= 0 || cfg.AccountGC.GcBlockSize <= 0 ||
+			cfg.AccountGC.GcMinAccountAge <= 0 {
 			logs.Err.Fatalln("Invalid account GC config")
 		}
-		gcPeriod := time.Second * time.Duration(config.AccountGC.GcPeriod)
-		stopAccountGc := garbageCollectUsers(gcPeriod, config.AccountGC.GcBlockSize, config.AccountGC.GcMinAccountAge)
+		gcPeriod := time.Second * time.Duration(cfg.AccountGC.GcPeriod)
+		stopAccountGc := garbageCollectUsers(gcPeriod, cfg.AccountGC.GcBlockSize, cfg.AccountGC.GcMinAccountAge)
 
 		defer func() {
 			stopAccountGc <- true
@@ -599,7 +482,7 @@ func main() {
 		}()
 	}
 
-	pushHandlers, err := push.Init(config.Push)
+	pushHandlers, err := push.Init(cfg.Push)
 	if err != nil {
 		logs.Err.Fatal("Failed to initialize push notifications:", err)
 	}
@@ -609,7 +492,7 @@ func main() {
 	}()
 	logs.Info.Println("Push handlers configured:", pushHandlers)
 
-	if err = initVideoCalls(config.WebRTC); err != nil {
+	if err = initVideoCalls(cfg.WebRTC); err != nil {
 		logs.Err.Fatal("Failed to init video calls: %w", err)
 	}
 
@@ -623,22 +506,22 @@ func main() {
 		globals.cluster.start()
 	}
 
-	tlsConfig, err := parseTLSConfig(*tlsEnabled, config.TLS)
+	tlsConfig, err := parseTLSConfig(*tlsEnabled, cfg.TLS)
 	if err != nil {
 		logs.Err.Fatalln(err)
 	}
 
 	// Initialize plugins.
-	pluginsInit(config.Plugin)
+	pluginsInit(cfg.Plugins)
 
 	// Initialize users cache
 	usersInit()
 
 	// Set up gRPC server, if one is configured
 	if *listenGrpc == "" {
-		*listenGrpc = config.GrpcListen
+		*listenGrpc = cfg.GrpcListen
 	}
-	if globals.grpcServer, err = serveGrpc(*listenGrpc, config.GrpcKeepalive, tlsConfig); err != nil {
+	if globals.grpcServer, err = serveGrpc(*listenGrpc, cfg.GrpcKeepalive, tlsConfig); err != nil {
 		logs.Err.Fatal(err)
 	}
 
@@ -654,7 +537,7 @@ func main() {
 			logs.Err.Fatal("Static content directory is not found", *staticPath)
 		}
 
-		staticMountPoint = config.StaticMount
+		staticMountPoint = cfg.StaticMount
 		if staticMountPoint == "" {
 			staticMountPoint = defaultStaticMount
 		} else {
@@ -667,7 +550,7 @@ func main() {
 		}
 		mux.Handle(staticMountPoint,
 			// Add optional Cache-Control header
-			cacheControlHandler(config.CacheControl,
+			cacheControlHandler(cfg.CacheControl,
 				// Optionally add Strict-Transport_security to the response
 				hstsHandler(
 					// Add gzip compression
@@ -684,24 +567,24 @@ func main() {
 
 	// Configure root path for serving API calls.
 	if *apiPath != "" {
-		config.ApiPath = *apiPath
+		cfg.ApiPath = *apiPath
 	}
-	if config.ApiPath == "" {
-		config.ApiPath = defaultApiPath
+	if cfg.ApiPath == "" {
+		cfg.ApiPath = defaultApiPath
 	} else {
-		if !strings.HasPrefix(config.ApiPath, "/") {
-			config.ApiPath = "/" + config.ApiPath
+		if !strings.HasPrefix(cfg.ApiPath, "/") {
+			cfg.ApiPath = "/" + cfg.ApiPath
 		}
-		if !strings.HasSuffix(config.ApiPath, "/") {
-			config.ApiPath += "/"
+		if !strings.HasSuffix(cfg.ApiPath, "/") {
+			cfg.ApiPath += "/"
 		}
 	}
-	logs.Info.Printf("API served from root URL path '%s'", config.ApiPath)
+	logs.Info.Printf("API served from root URL path '%s'", cfg.ApiPath)
 
 	// Best guess location of the main endpoint.
 	// TODO: provide fix for the case when the serving is over unix sockets.
 	// TODO: implement serving large files over gRPC, then remove globals.servingAt.
-	globals.servingAt = config.Listen + config.ApiPath
+	globals.servingAt = cfg.Listen + cfg.ApiPath
 	if tlsConfig != nil {
 		globals.servingAt = "https://" + globals.servingAt
 	} else {
@@ -710,7 +593,7 @@ func main() {
 
 	sspath := *serverStatusPath
 	if sspath == "" || sspath == "-" {
-		sspath = config.ServerStatusPath
+		sspath = cfg.ServerStatusPath
 	}
 	if sspath != "" && sspath != "-" {
 		logs.Info.Printf("Server status is available at '%s'", sspath)
@@ -718,15 +601,15 @@ func main() {
 	}
 
 	// Handle websocket clients.
-	mux.HandleFunc(config.ApiPath+"v0/channels", serveWebSocket)
+	mux.HandleFunc(cfg.ApiPath+"v0/channels", serveWebSocket)
 	// Handle long polling clients. Enable compression.
-	mux.Handle(config.ApiPath+"v0/channels/lp", gh.CompressHandler(http.HandlerFunc(serveLongPoll)))
-	if config.Media != nil {
+	mux.Handle(cfg.ApiPath+"v0/channels/lp", gh.CompressHandler(http.HandlerFunc(serveLongPoll)))
+	if cfg.Media != nil {
 		// Handle uploads of large files.
-		mux.Handle(config.ApiPath+"v0/file/u/", gh.CompressHandler(http.HandlerFunc(largeFileReceive)))
+		mux.Handle(cfg.ApiPath+"v0/file/u/", gh.CompressHandler(http.HandlerFunc(largeFileReceive)))
 		// Serve large files.
-		mux.Handle(config.ApiPath+"v0/file/s/", gh.CompressHandler(http.HandlerFunc(largeFileServe)))
-		logs.Info.Println("Large media handling enabled", config.Media.UseHandler)
+		mux.Handle(cfg.ApiPath+"v0/file/s/", gh.CompressHandler(http.HandlerFunc(largeFileServe)))
+		logs.Info.Println("Large media handling enabled", cfg.Media.UseHandler)
 	}
 
 	if staticMountPoint != "/" {
@@ -734,7 +617,7 @@ func main() {
 		mux.HandleFunc("/", serve404)
 	}
 
-	if err = listenAndServe(config.Listen, mux, tlsConfig, signalHandler()); err != nil {
+	if err = listenAndServe(cfg.Listen, mux, tlsConfig, signalHandler()); err != nil {
 		logs.Err.Fatal(err)
 	}
 }
