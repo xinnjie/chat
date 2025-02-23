@@ -20,9 +20,6 @@ spec:
     spec:
       containers:
         - name: tinode
-          args:
-            # disable static files serving
-            - "--static_data=-"
           env:
           # 配置模板: https://github.com/tinode/chat/blob/c0671ca62dbf6f68c3eb2afafb69cdda297c0b90/docker/tinode/config.template
           # Doc: https://github.com/tinode/chat/blob/c0671ca62dbf6f68c3eb2afafb69cdda297c0b90/docker/tinode/config.template#L7

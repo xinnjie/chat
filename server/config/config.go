@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"log"
+	"os"
 
 	"github.com/spf13/viper"
 )
@@ -159,6 +160,10 @@ func FromViper() *Config {
 	}
 
 	log.Printf("Using config file: %s", viper.ConfigFileUsed())
+
+	if config.StaticData == "" {
+		config.StaticData = os.Getenv("KO_DATA_PATH")
+	}
 
 	return &config
 }

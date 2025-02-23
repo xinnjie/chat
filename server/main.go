@@ -530,6 +530,8 @@ func main() {
 	// the path pointed by 'static_mount' in the config. If that is missing then it's
 	// served at root '/'.
 	var staticMountPoint string
+	// TODO(xinnjie) integrate vipper with command line
+	*staticPath = cfg.StaticData
 	if *staticPath != "" && *staticPath != "-" {
 		// Resolve path to static content.
 		*staticPath = toAbsolutePath(curwd, *staticPath)

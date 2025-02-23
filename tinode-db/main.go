@@ -218,27 +218,27 @@ func main() {
 	data.datapath, _ = filepath.Split(*datafile)
 
 	var config configType
-	if file, err := os.Open(*conffile); err != nil {
+	file, err := os.Open(*conffile)
+	if err != nil {
 		log.Fatalln("Failed to read config file:", err)
-	} else {
-		jr := jcr.New(file)
-		if err = json.NewDecoder(jr).Decode(&config); err != nil {
-			switch jerr := err.(type) {
-			case *json.UnmarshalTypeError:
-				lnum, cnum, _ := jr.LineAndChar(jerr.Offset)
-				log.Fatalf("Unmarshall error in config file in %s at %d:%d (offset %d bytes): %s",
-					jerr.Field, lnum, cnum, jerr.Offset, jerr.Error())
-			case *json.SyntaxError:
-				lnum, cnum, _ := jr.LineAndChar(jerr.Offset)
-				log.Fatalf("Syntax error in config file at %d:%d (offset %d bytes): %s",
-					lnum, cnum, jerr.Offset, jerr.Error())
-			default:
-				log.Fatal("Failed to parse config file: ", err)
-			}
+	}
+	jr := jcr.New(file)
+	if err = json.NewDecoder(jr).Decode(&config); err != nil {
+		switch jerr := err.(type) {
+		case *json.UnmarshalTypeError:
+			lnum, cnum, _ := jr.LineAndChar(jerr.Offset)
+			log.Fatalf("Unmarshall error in config file in %s at %d:%d (offset %d bytes): %s",
+				jerr.Field, lnum, cnum, jerr.Offset, jerr.Error())
+		case *json.SyntaxError:
+			lnum, cnum, _ := jr.LineAndChar(jerr.Offset)
+			log.Fatalf("Syntax error in config file at %d:%d (offset %d bytes): %s",
+				lnum, cnum, jerr.Offset, jerr.Error())
+		default:
+			log.Fatal("Failed to parse config file: ", err)
 		}
 	}
 
-	err := store.Store.Open(1, config.StoreConfig)
+	err = store.Store.Open(1, config.StoreConfig)
 	defer store.Store.Close()
 
 	adapterVersion := store.Store.GetAdapterVersion()
@@ -256,6 +256,7 @@ func main() {
 				log.Fatalln("Database not found.")
 			}
 			log.Println("Database not found. Creating.")
+			// TODO(xinnjie): usecase: bitnami will create database by default, set InitDb init reset param to true
 			err = store.Store.InitDb(config.StoreConfig, false)
 			if err == nil {
 				log.Println("Database successfully created.")
