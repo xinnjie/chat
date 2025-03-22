@@ -50,7 +50,15 @@
 	},
 
 	"auth_config": {
-		"logical_names": [],
+		"logical_names": [
+			"jwt:rest",
+			"rest:"
+		],
+		"rest": {
+			"server_url": "http://tenisapp-api-service.watchbeats.svc.cluster.local:8081/tinode/",
+			"allow_new_accounts": true,
+			"use_separate_endpoints": true
+		},
 		"basic": {
 			"add_to_tags": true,
 			"min_login_length": 3,
@@ -71,24 +79,11 @@
 	"store_config": {
 		"uid_key": "la6YsO+bNX/+XIkOqc5Svw==",
 		"max_results": 1024,
-		"use_adapter": "mysql",
+		"use_adapter": "postgres",
 		"adapters": {
-			"mysql": {
-				"database": "tinode",
-				"dsn": "root@tcp(mysql)/tinode?parseTime=true&collation=utf8mb4_unicode_ci"
-			},
 			"postgres": {
 				"database": "tinode",
-				"dsn": "postgresql://postgres:postgres@localhost:5432/tinode?sslmode=disable"
-			},
-			"rethinkdb": {
-				"database": "tinode",
-				"addresses": "rethinkdb"
-			},
-			"mongodb": {
-				"database": "tinode",
-				"addresses": "mongodb",
-				"replica_set": "rs0"
+				"dsn": "Please use POSTGRES_DSN env to set"
 			}
 		}
 	},

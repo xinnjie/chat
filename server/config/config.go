@@ -144,9 +144,7 @@ func FromViper() *Config {
 	}
 
 	for configPath, envVar := range envBindings {
-		if err := viper.BindEnv(configPath, envVar); err != nil {
-			log.Fatal("Cannot bind env: ", err)
-		}
+		viper.MustBindEnv(configPath, envVar)
 	}
 
 	err := viper.ReadInConfig()
