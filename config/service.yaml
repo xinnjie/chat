@@ -12,11 +12,15 @@ spec:
     - port: 6060
       targetPort: 6060
       protocol: TCP
-      name: http
+      name: http-app
     - port: 16060
       targetPort: 16060
       protocol: TCP
-      name: grpc-api
+      name: grpc-app
+    - port: 16061
+      targetPort: 16061
+      protocol: TCP
+      name: grpc-admin
   selector:
     app.kubernetes.io/name: tinode
     app.kubernetes.io/instance: tinode

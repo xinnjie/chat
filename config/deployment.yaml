@@ -49,11 +49,14 @@ spec:
           image: ko://github.com/tinode/chat/server
           imagePullPolicy: IfNotPresent
           ports:
-            - name: app
+            - name: http-app
               containerPort: 6060
               protocol: TCP
-            - name: grpc
+            - name: grpc-app
               containerPort: 16060
+              protocol: TCP
+            - name: grpc-admin
+              containerPort: 16061
               protocol: TCP
           resources:
             # limits:

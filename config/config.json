@@ -199,5 +199,9 @@
 			"failure_text": null,
 			"service_addr": "tcp://localhost:40051"
 		}
-	]
+	],
+	"admin": {
+		"enabled": true,
+		"listen": ":16061"
+	}
 }

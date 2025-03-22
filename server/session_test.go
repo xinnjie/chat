@@ -6,12 +6,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/mock/gomock"
 	"github.com/tinode/chat/server/auth"
 	"github.com/tinode/chat/server/auth/mock_auth"
 	"github.com/tinode/chat/server/store"
 	"github.com/tinode/chat/server/store/mock_store"
 	"github.com/tinode/chat/server/store/types"
+	"go.uber.org/mock/gomock"
 )
 
 func test_makeSession(uid types.Uid) *Session {

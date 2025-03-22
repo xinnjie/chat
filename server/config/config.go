@@ -80,6 +80,14 @@ type Config struct {
 	AccountGC   *AccountGcConfig            `mapstructure:"acc_gc_config"`
 	Media       *MediaConfig                `mapstructure:"media"`
 	WebRTC      CallConfig                  `mapstructure:"webrtc"`
+	Admin       AdminConfig                 `mapstructure:"admin"`
+}
+
+type AdminConfig struct {
+	// Listen address for the admin server
+	Listen  string `mapstructure:"listen"`
+	// Enable the admin server
+	Enabled bool   `mapstructure:"enabled"`
 }
 
 func FromViper() *Config {

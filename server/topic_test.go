@@ -8,12 +8,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/mock/gomock"
 	"github.com/tinode/chat/server/auth"
+	"github.com/tinode/chat/server/config"
 	"github.com/tinode/chat/server/logs"
 	"github.com/tinode/chat/server/store"
 	"github.com/tinode/chat/server/store/mock_store"
 	"github.com/tinode/chat/server/store/types"
+	"go.uber.org/mock/gomock"
 )
 
 type responses struct {
@@ -267,7 +268,7 @@ func TestHandleBroadcastCall(t *testing.T) {
 	numUsers := 2
 	helper := TopicTestHelper{}
 	helper.setUp(t, numUsers, types.TopicCatP2P, "p2p-test" /*attach=*/, true)
-	globals.iceServers = []iceServer{{Username: "dummy"}}
+	globals.iceServers = []config.IceServer{{Username: "dummy"}}
 	helper.topic.lastID = 5
 	defer helper.tearDown()
 	helper.mm.EXPECT().Save(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, true)

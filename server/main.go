@@ -1,19 +1,11 @@
-/******************************************************************************
- *
- *  Description :
- *
- *  Setup & initialization.
- *
- *****************************************************************************/
-
 package main
-
-//go:generate protoc --go_out=../pbx --go_opt=paths=source_relative --go-grpc_out=../pbx --go-grpc_opt=paths=source_relative ../pbx/model.proto
 
 import (
 	"encoding/base64"
 	"flag"
+	"log/slog"
 	"math/rand"
+	"net"
 	"net/http"
 	"os"
 	"runtime"
@@ -51,11 +43,16 @@ import (
 	// Credential validators
 	_ "github.com/tinode/chat/server/validate/email"
 	_ "github.com/tinode/chat/server/validate/tel"
+
+	// For gRPC server
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
+	pbx "github.com/tinode/chat/pbx"
 	"google.golang.org/grpc"
 
 	// File upload handlers
 	_ "github.com/tinode/chat/server/media/fs"
 	_ "github.com/tinode/chat/server/media/s3"
+	"google.golang.org/grpc/reflection"
 )
 
 const (
@@ -293,7 +290,7 @@ func main() {
 	}
 
 	err = store.Store.Open(workerId, cfg.StoreConfig)
-	logs.Info.Printf("DB adapter: %s, apdapter version: %s", store.Store.GetAdapterName(), store.Store.GetAdapterVersion())
+	logs.Info.Printf("DB adapter: %s, apdapter version: %d", store.Store.GetAdapterName(), store.Store.GetAdapterVersion())
 	if err != nil {
 		logs.Err.Fatal("Failed to connect to DB: ", err)
 	}
@@ -617,6 +614,43 @@ func main() {
 	if staticMountPoint != "/" {
 		// Serve json-formatted 404 for all other URLs
 		mux.HandleFunc("/", serve404)
+	}
+
+	if cfg.Admin.Enabled {
+		logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
+		opts := []logging.Option{
+			logging.WithLogOnEvents(logging.StartCall, logging.FinishCall),
+		}
+	
+		svrOpts := []grpc.ServerOption{
+			grpc.ChainUnaryInterceptor(
+				logging.UnaryServerInterceptor(logs.InterceptorLogger(logger), opts...),
+			),
+			grpc.ChainStreamInterceptor(
+				logging.StreamServerInterceptor(logs.InterceptorLogger(logger), opts...),
+			),
+		}
+		logs.Info.Println("Starting admin gRPC server at", cfg.Admin.Listen)
+		adminServer := NewAdminServer(logger, *cfg, store.Store.GetAdapter())
+		
+		grpcServer := grpc.NewServer(svrOpts...)
+		pbx.RegisterAdminServiceServer(grpcServer, adminServer)
+		
+		// Register reflection service for gRPC tools like grpcurl
+		reflection.Register(grpcServer)
+		logs.Info.Println("gRPC reflection service registered")
+		
+		// Start admin server in a separate goroutine
+		go func() {
+			lis, err := net.Listen("tcp", cfg.Admin.Listen)
+			if err != nil {
+				logs.Err.Fatalf("Failed to listen for admin gRPC: %v", err)
+			}
+			
+			if err := grpcServer.Serve(lis); err != nil {
+				logs.Err.Fatalf("Failed to serve admin gRPC: %v", err)
+			}
+		}()
 	}
 
 	if err = listenAndServe(cfg.Listen, mux, tlsConfig, signalHandler()); err != nil {
