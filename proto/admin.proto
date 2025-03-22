@@ -1,0 +1,74 @@
+syntax = "proto3";
+package pbx;
+import "model.proto";
+
+// AdminService provides administrative functionality for managing the Tinode server.
+service AdminService {
+  // MakeUserRoot changes a user's authentication level to ROOT.
+  rpc MakeUserRoot(MakeUserRootReq) returns (MakeUserRootResp) {}
+  
+  // GetUser retrieves detailed information about a user.
+  rpc GetUser(GetUserReq) returns (GetUserResp) {}
+  
+  // UpdateUserState changes a user's account state (normal, suspended).
+  rpc UpdateUserState(UpdateUserStateReq) returns (UpdateUserStateResp) {}
+  
+  // DeleteUser permanently removes a user account.
+  rpc DeleteUser(DeleteUserReq) returns (DeleteUserResp) {}
+}
+
+// Request to promote a user to ROOT authentication level.
+message MakeUserRootReq {
+  // User ID to be promoted to ROOT.
+  string user_id = 1;
+}
+
+// Response to a request to promote a user to ROOT authentication level.
+message MakeUserRootResp {
+}
+
+// Request to retrieve user information.
+message GetUserReq {
+  // User ID to retrieve information for.
+  string user_id = 1;
+}
+
+// Response containing user information.
+message GetUserResp {
+}
+
+// AccountState defines possible states for a user account.
+enum AccountState {
+  // Default state for unspecified values.
+  ACCOUNT_STATE_UNSPECIFIED = 0;
+  // Normal active account.
+  ACCOUNT_STATE_NORMAL = 1;
+  // Suspended account with limited functionality.
+  ACCOUNT_STATE_SUSPENDED = 2;
+}
+
+// Request to update a user's account state.
+message UpdateUserStateReq {
+  // User ID to update.
+  string user_id = 1;
+  
+  // New account state (normal, suspended).
+  AccountState state = 2;
+}
+
+// Response to a request to update a user's account state.
+message UpdateUserStateResp {
+}
+
+// Request to delete a user account.
+message DeleteUserReq {
+  // User ID to delete.
+  string user_id = 1;
+  
+  // Whether to perform a hard delete.
+  bool hard = 2;
+}
+
+// Response to a request to delete a user account.
+message DeleteUserResp {
+}

@@ -352,6 +352,7 @@ func getHttpAuth(req *http.Request) (method, secret string) {
 // Authenticate non-websocket HTTP request
 func authHttpRequest(req *http.Request) (types.Uid, []byte, error) {
 	var uid types.Uid
+	// TODO(xinnjie): 目前强制 base64 encode, 但是对于 JWT token, 并不需要 base64 encode, 可以添加配置兼容
 	if authMethod, secret := getHttpAuth(req); authMethod != "" {
 		decodedSecret := make([]byte, base64.StdEncoding.DecodedLen(len(secret)))
 		n, err := base64.StdEncoding.Decode(decodedSecret, []byte(secret))

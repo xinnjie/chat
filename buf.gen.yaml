@@ -1,0 +1,15 @@
+version: v2
+managed:
+  enabled: true
+  override:
+    - file_option: go_package_prefix
+      value: github.com/tinode/chat/pbx
+plugins:
+  # Go
+  - remote: buf.build/protocolbuffers/go
+    out: pbx
+    opt: paths=source_relative
+  - remote: buf.build/grpc/go:v1.5.1
+    out: pbx
+    opt:
+      - paths=source_relative
