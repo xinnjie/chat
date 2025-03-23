@@ -43,7 +43,7 @@ const (
 //	key: client's secret key
 //
 // Returns application id, key type.
-func checkAPIKey(apikey string) (isValid, isRoot bool) {
+func checkAPIKey(apikey string, apiKeySalt []byte) (isValid, isRoot bool) {
 	if declen := base64.URLEncoding.DecodedLen(len(apikey)); declen != apikeyLength {
 		return
 	}
@@ -58,7 +58,7 @@ func checkAPIKey(apikey string) (isValid, isRoot bool) {
 		return
 	}
 
-	hasher := hmac.New(md5.New, globals.apiKeySalt)
+	hasher := hmac.New(md5.New, apiKeySalt)
 	hasher.Write(data[:apikeyVersion+apikeyAppID+apikeySequence+apikeyWho])
 	check := hasher.Sum(nil)
 	if !bytes.Equal(data[apikeyVersion+apikeyAppID+apikeySequence+apikeyWho:], check) {

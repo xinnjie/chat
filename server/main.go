@@ -128,7 +128,7 @@ type credValidator struct {
 	addToTags       bool
 }
 
-var globals struct {
+type Server struct {
 	// Topics cache and processing.
 	hub *Hub
 	// Indicator that shutdown is in progress
@@ -199,6 +199,8 @@ var globals struct {
 	// TODO: implement file-serving API for gRPC and remove this feature.
 	servingAt string
 }
+
+var globals = Server{}
 
 func main() {
 	executable, _ := os.Executable()
@@ -600,14 +602,14 @@ func main() {
 	}
 
 	// Handle websocket clients.
-	mux.HandleFunc(cfg.ApiPath+"v0/channels", serveWebSocket)
+	mux.HandleFunc(cfg.ApiPath+"v0/channels", globals.serveWebSocket)
 	// Handle long polling clients. Enable compression.
-	mux.Handle(cfg.ApiPath+"v0/channels/lp", gh.CompressHandler(http.HandlerFunc(serveLongPoll)))
+	mux.Handle(cfg.ApiPath+"v0/channels/lp", gh.CompressHandler(http.HandlerFunc(globals.serveLongPoll)))
 	if cfg.Media != nil {
 		// Handle uploads of large files.
-		mux.Handle(cfg.ApiPath+"v0/file/u/", gh.CompressHandler(http.HandlerFunc(largeFileReceive)))
+		mux.Handle(cfg.ApiPath+"v0/file/u/", gh.CompressHandler(http.HandlerFunc(globals.largeFileReceive)))
 		// Serve large files.
-		mux.Handle(cfg.ApiPath+"v0/file/s/", gh.CompressHandler(http.HandlerFunc(largeFileServe)))
+		mux.Handle(cfg.ApiPath+"v0/file/s/", gh.CompressHandler(http.HandlerFunc(globals.largeFileServe)))
 		logs.Info.Println("Large media handling enabled", cfg.Media.UseHandler)
 	}
 
@@ -621,7 +623,7 @@ func main() {
 		opts := []logging.Option{
 			logging.WithLogOnEvents(logging.StartCall, logging.FinishCall),
 		}
-	
+
 		svrOpts := []grpc.ServerOption{
 			grpc.ChainUnaryInterceptor(
 				logging.UnaryServerInterceptor(logs.InterceptorLogger(logger), opts...),
@@ -632,21 +634,21 @@ func main() {
 		}
 		logs.Info.Println("Starting admin gRPC server at", cfg.Admin.Listen)
 		adminServer := NewAdminServer(logger, *cfg, store.Store.GetAdapter())
-		
+
 		grpcServer := grpc.NewServer(svrOpts...)
 		pbx.RegisterAdminServiceServer(grpcServer, adminServer)
-		
+
 		// Register reflection service for gRPC tools like grpcurl
 		reflection.Register(grpcServer)
 		logs.Info.Println("gRPC reflection service registered")
-		
+
 		// Start admin server in a separate goroutine
 		go func() {
 			lis, err := net.Listen("tcp", cfg.Admin.Listen)
 			if err != nil {
 				logs.Err.Fatalf("Failed to listen for admin gRPC: %v", err)
 			}
-			
+
 			if err := grpcServer.Serve(lis); err != nil {
 				logs.Err.Fatalf("Failed to serve admin gRPC: %v", err)
 			}

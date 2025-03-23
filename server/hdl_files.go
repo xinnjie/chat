@@ -30,7 +30,7 @@ import (
 // See https://www.iana.org/assignments/media-types/media-types.xhtml
 var allowedMimeTypes = []string{"application/", "audio/", "font/", "image/", "text/", "video/"}
 
-func largeFileServe(wrt http.ResponseWriter, req *http.Request) {
+func (s *Server) largeFileServe(wrt http.ResponseWriter, req *http.Request) {
 	now := types.TimeNow()
 	enc := json.NewEncoder(wrt)
 	mh := store.Store.GetMediaHandler()
@@ -73,7 +73,7 @@ func largeFileServe(wrt http.ResponseWriter, req *http.Request) {
 	}
 
 	// Check for API key presence
-	if isValid, _ := checkAPIKey(getAPIKey(req)); !isValid {
+	if isValid, _ := checkAPIKey(getAPIKey(req), s.apiKeySalt); !isValid {
 		writeHttpResponse(ErrAPIKeyRequired(now), errors.New("invalid or missing API key"))
 		return
 	}
@@ -161,7 +161,7 @@ func largeFileServe(wrt http.ResponseWriter, req *http.Request) {
 }
 
 // largeFileReceive receives files from client over HTTP(S) and passes them to the configured media handler.
-func largeFileReceive(wrt http.ResponseWriter, req *http.Request) {
+func (s *Server) largeFileReceive(wrt http.ResponseWriter, req *http.Request) {
 	now := types.TimeNow()
 	enc := json.NewEncoder(wrt)
 	mh := store.Store.GetMediaHandler()
@@ -210,7 +210,7 @@ func largeFileReceive(wrt http.ResponseWriter, req *http.Request) {
 	}
 
 	// Check for API key presence
-	if isValid, _ := checkAPIKey(getAPIKey(req)); !isValid {
+	if isValid, _ := checkAPIKey(getAPIKey(req), s.apiKeySalt); !isValid {
 		writeHttpResponse(ErrAPIKeyRequired(now), nil)
 		return
 	}

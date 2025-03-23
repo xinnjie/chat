@@ -121,7 +121,7 @@ func (sess *Session) readOnce(wrt http.ResponseWriter, req *http.Request) (int, 
 //   - if no payload, perform long poll
 //   - if payload exists, process it and close
 //   - if sid is not empty but there is no session, report an error
-func serveLongPoll(wrt http.ResponseWriter, req *http.Request) {
+func (s *Server) serveLongPoll(wrt http.ResponseWriter, req *http.Request) {
 	now := time.Now().UTC().Round(time.Millisecond)
 
 	// Use the lowest common denominator - this is a legacy handler after all (otherwise would use application/json)
@@ -132,7 +132,7 @@ func serveLongPoll(wrt http.ResponseWriter, req *http.Request) {
 
 	enc := json.NewEncoder(wrt)
 
-	if isValid, _ := checkAPIKey(getAPIKey(req)); !isValid {
+	if isValid, _ := checkAPIKey(getAPIKey(req), s.apiKeySalt); !isValid {
 		wrt.WriteHeader(http.StatusForbidden)
 		enc.Encode(ErrAPIKeyRequired(now))
 		return
