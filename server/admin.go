@@ -8,7 +8,6 @@ import (
 	"github.com/tinode/chat/server/auth"
 	"github.com/tinode/chat/server/config"
 	adapter "github.com/tinode/chat/server/db"
-	"github.com/tinode/chat/server/logs"
 	"github.com/tinode/chat/server/store/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -46,17 +45,21 @@ func (a *AdminServer) MakeUserRoot(ctx context.Context, req *pbx.MakeUserRootReq
 
 	// Update user auth level to ROOT
 	if err := a.db.AuthUpdRecord(userId, "basic", "", auth.LevelRoot, nil, time.Time{}); err != nil {
-		logger.Warn("Failed to promote user to ROOT: %v", err)
+		logger.Warn("Failed to promote user to ROOT", "error", err)
 		return nil, status.Errorf(codes.Internal, "failed to promote user: %v", err)
 	}
 	
-	logger.Info("User '%s' successfully promoted to ROOT", req.UserId)
+	logger.Info("User successfully promoted to ROOT")
 	return &pbx.MakeUserRootResp{}, nil
 }
 
 // GetUser retrieves detailed information about a user.
 func (a *AdminServer) GetUser(ctx context.Context, req *pbx.GetUserReq) (*pbx.GetUserResp, error) {
-	logs.Info.Printf("GetUser request for user %s", req.UserId)
+	// Parse user ID
+	userId := types.ParseUserId(req.UserId)
+	if userId.IsZero() {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid user ID '%s'", req.UserId)
+	}
 
 	// TODO: Implement getting user information
 
@@ -65,7 +68,11 @@ func (a *AdminServer) GetUser(ctx context.Context, req *pbx.GetUserReq) (*pbx.Ge
 
 // UpdateUserState changes a user's account state (normal, suspended).
 func (a *AdminServer) UpdateUserState(ctx context.Context, req *pbx.UpdateUserStateReq) (*pbx.UpdateUserStateResp, error) {
-	logs.Info.Printf("UpdateUserState request for user %s to state %v", req.UserId, req.State)
+	// Parse user ID
+	userId := types.ParseUserId(req.UserId)
+	if userId.IsZero() {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid user ID '%s'", req.UserId)
+	}
 
 	// TODO: Implement user state update
 	// Check the state value
@@ -83,7 +90,11 @@ func (a *AdminServer) UpdateUserState(ctx context.Context, req *pbx.UpdateUserSt
 
 // DeleteUser permanently removes a user account.
 func (a *AdminServer) DeleteUser(ctx context.Context, req *pbx.DeleteUserReq) (*pbx.DeleteUserResp, error) {
-	logs.Info.Printf("DeleteUser request for user %s (hard=%v)", req.UserId, req.Hard)
+	// Parse user ID
+	userId := types.ParseUserId(req.UserId)
+	if userId.IsZero() {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid user ID '%s'", req.UserId)
+	}
 
 	// TODO: Implement user deletion
 	// Check if user exists
