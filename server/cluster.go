@@ -501,7 +501,7 @@ func (c *Cluster) TopicMaster(msg *ClusterReq, rejected *bool) error {
 	if msg.Sess != nil {
 		// We only need some session info. No need to copy everything.
 		sess = &Session{
-			proto: PROXY,
+			protocolType: PROXY,
 			// Multiplexing session which actually handles the communication.
 			multi: msess,
 			// Local parameters specific to this session.

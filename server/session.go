@@ -38,13 +38,13 @@ const deferredNotificationsTimeout = time.Second * 5
 
 var minSupportedVersionValue = parseVersion(minSupportedVersion)
 
-// SessionProto is the type of the wire transport.
-type SessionProto int
+// SessionProtocolType is the type of the wire transport.
+type SessionProtocolType int
 
 // Constants defining individual types of wire transports.
 const (
 	// NONE is undefined/not set.
-	NONE SessionProto = iota
+	NONE SessionProtocolType = iota
 	// WEBSOCK represents websocket connection.
 	WEBSOCK
 	// LPOLL represents a long polling connection.
@@ -61,7 +61,7 @@ const (
 // sessions.
 type Session struct {
 	// protocol - NONE (unset), WEBSOCK, LPOLL, GRPC, PROXY, MULTIPLEX
-	proto SessionProto
+	protocolType SessionProtocolType
 
 	// Session ID
 	sid string
@@ -236,12 +236,12 @@ func (s *Session) unsubAll() {
 // Indicates whether this session is a local interface for a remote proxy topic.
 // It multiplexes multiple sessions.
 func (s *Session) isMultiplex() bool {
-	return s.proto == MULTIPLEX
+	return s.protocolType == MULTIPLEX
 }
 
 // Indicates whether this session is a short-lived proxy for a remote session.
 func (s *Session) isProxy() bool {
-	return s.proto == PROXY
+	return s.protocolType == PROXY
 }
 
 // Cluster session: either a proxy or a multiplexing session.
@@ -257,7 +257,7 @@ func (s *Session) scheduleClusterWriteLoop() {
 }
 
 func (s *Session) supportsMessageBatching() bool {
-	switch s.proto {
+	switch s.protocolType {
 	case WEBSOCK:
 		return true
 	case GRPC:
@@ -772,7 +772,7 @@ func (s *Session) hello(msg *ClientComMessage) {
 			params["callTimeout"] = int(globals.callEstablishmentTimeout.Seconds())
 		}
 
-		if s.proto == GRPC {
+		if s.protocolType == GRPC {
 			// gRPC client may need server address to be able to fetch large files over http(s).
 			// TODO: add support for fetching files over gRPC, then remove this parameter.
 			params["servingAt"] = globals.servingAt
@@ -853,7 +853,7 @@ func (s *Session) hello(msg *ClientComMessage) {
 
 	var httpStatus int
 	var httpStatusText string
-	if s.proto == LPOLL || deviceIDUpdate {
+	if s.protocolType == LPOLL || deviceIDUpdate {
 		// In case of long polling StatusCreated was reported earlier.
 		// In case of deviceID update just report success.
 		httpStatus = http.StatusOK
@@ -1358,7 +1358,7 @@ func (s *Session) serializeAndUpdateStats(msg *ServerComMessage) any {
 }
 
 func (s *Session) serialize(msg *ServerComMessage) (int, any) {
-	if s.proto == GRPC {
+	if s.protocolType == GRPC {
 		msg := pbServSerialize(msg)
 		// TODO: calculate and return the size of `msg`.
 		return -1, msg

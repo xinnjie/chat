@@ -77,7 +77,7 @@ func callPartySession(sess *Session) *Session {
 	if sess.isProxy() {
 		// We are on the topic host node. Make a copy of the ephemeral proxy session.
 		callSess := &Session{
-			proto: PROXY,
+			protocolType: PROXY,
 			// Multiplexing session which actually handles the communication.
 			multi: sess.multi,
 			// Local parameters specific to this session.

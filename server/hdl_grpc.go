@@ -27,7 +27,7 @@ type grpcNodeServer struct {
 }
 
 func (sess *Session) closeGrpc() {
-	if sess.proto == GRPC {
+	if sess.protocolType == GRPC {
 		sess.lock.Lock()
 		sess.grpcnode = nil
 		sess.lock.Unlock()

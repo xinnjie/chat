@@ -90,16 +90,16 @@ func (ss *SessionStore) NewSession(conn any, sid string) (*Session, int) {
 
 	switch c := conn.(type) {
 	case *websocket.Conn:
-		s.proto = WEBSOCK
+		s.protocolType = WEBSOCK
 		s.ws = c
 	case http.ResponseWriter:
-		s.proto = LPOLL
+		s.protocolType = LPOLL
 		// no need to store c for long polling, it changes with every request
 	case *ClusterNode:
-		s.proto = MULTIPLEX
+		s.protocolType = MULTIPLEX
 		s.clnode = c
 	case pbx.Node_MessageLoopServer:
-		s.proto = GRPC
+		s.protocolType = GRPC
 		s.grpcnode = c
 	default:
 		logs.Err.Panicln("session: unknown connection type", conn)
@@ -121,7 +121,7 @@ func (ss *SessionStore) NewSession(conn any, sid string) (*Session, int) {
 
 	ss.lock.Lock()
 
-	if s.proto == LPOLL {
+	if s.protocolType == LPOLL {
 		// Only LP sessions need to be sorted by last active
 		s.lpTracker = ss.lru.PushFront(&s)
 	}
@@ -165,7 +165,7 @@ func (ss *SessionStore) Get(sid string) *Session {
 	defer ss.lock.Unlock()
 
 	if sess := ss.sessCache[sid]; sess != nil {
-		if sess.proto == LPOLL {
+		if sess.protocolType == LPOLL {
 			ss.lru.MoveToFront(sess.lpTracker)
 			sess.lastTouched = time.Now()
 		}
@@ -182,7 +182,7 @@ func (ss *SessionStore) Delete(s *Session) {
 	defer ss.lock.Unlock()
 
 	delete(ss.sessCache, s.sid)
-	if s.proto == LPOLL {
+	if s.protocolType == LPOLL {
 		ss.lru.Remove(s.lpTracker)
 	}
 
@@ -232,7 +232,7 @@ func (ss *SessionStore) EvictUser(uid types.Uid, skipSid string) {
 			_, data := s.serialize(evicted)
 			s.stopSession(data)
 			delete(ss.sessCache, s.sid)
-			if s.proto == LPOLL {
+			if s.protocolType == LPOLL {
 				ss.lru.Remove(s.lpTracker)
 			}
 		}

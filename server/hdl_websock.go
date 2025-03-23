@@ -30,7 +30,7 @@ const (
 )
 
 func (sess *Session) closeWS() {
-	if sess.proto == WEBSOCK {
+	if sess.protocolType == WEBSOCK {
 		sess.ws.Close()
 	}
 }
