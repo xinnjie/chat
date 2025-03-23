@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/tinode/chat/server/auth"
+	"github.com/tinode/chat/server/config"
 	"github.com/tinode/chat/server/logs"
 	"github.com/tinode/chat/server/store"
 	"github.com/tinode/chat/server/store/types"
@@ -84,6 +85,8 @@ type Hub struct {
 
 	// Request to shutdown, unbuffered
 	shutdown chan chan<- bool
+
+	config config.Config
 }
 
 func (h *Hub) topicGet(name string) *Topic {
@@ -103,7 +106,7 @@ func (h *Hub) topicDel(name string) {
 	h.topics.Delete(name)
 }
 
-func newHub() *Hub {
+func newHub(config config.Config) *Hub {
 	h := &Hub{
 		topics: &sync.Map{},
 		// TODO: verify if these channels have to be buffered.
@@ -115,6 +118,7 @@ func newHub() *Hub {
 		meta:       make(chan *ClientComMessage, 128),
 		userStatus: make(chan *userStatusReq, 128),
 		shutdown:   make(chan chan<- bool),
+		config:     config,
 	}
 
 	statsRegisterInt("LiveTopics")
@@ -165,20 +169,7 @@ func (h *Hub) run() {
 			t := h.topicGet(join.RcptTo)
 			if t == nil {
 				// Topic does not exist or not loaded.
-				t = &Topic{
-					name:      join.RcptTo,
-					xoriginal: join.Original,
-					// Indicates a proxy topic.
-					isProxy:   globals.cluster.isRemoteTopic(join.RcptTo),
-					sessions:  make(map[*Session]perSessionData),
-					clientMsg: make(chan *ClientComMessage, 192),
-					serverMsg: make(chan *ServerComMessage, 64),
-					reg:       make(chan *ClientComMessage, 256),
-					unreg:     make(chan *ClientComMessage, 256),
-					meta:      make(chan *ClientComMessage, 64),
-					perUser:   make(map[types.Uid]perUserData),
-					exit:      make(chan *shutDown, 1),
-				}
+				t = NewTopic(join.RcptTo, join.Original, time.Duration(h.config.WebRTC.CallEstablishmentTimeout)*time.Second)
 				if globals.cluster != nil {
 					if t.isProxy {
 						t.proxy = make(chan *ClusterResp, 32)

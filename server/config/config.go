@@ -90,7 +90,7 @@ type AdminConfig struct {
 	Enabled bool   `mapstructure:"enabled"`
 }
 
-func FromViper() *Config {
+func FromViper() Config {
 	viper.SetConfigName("config")
 	viper.SetConfigType("json")
 	viper.AddConfigPath("/etc/tinode/config")
@@ -171,7 +171,7 @@ func FromViper() *Config {
 		config.StaticData = os.Getenv("KO_DATA_PATH")
 	}
 
-	return &config
+	return config
 }
 
 func MustJsonRawMessage(v any) json.RawMessage {

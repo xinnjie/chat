@@ -103,7 +103,7 @@ const (
 	defaultCountryCode = "US"
 
 	// Default timeout to drop an unanswered call, seconds.
-	defaultCallEstablishmentTimeout = 30
+	defaultCallEstablishmentTimeout = 30 * time.Second
 )
 
 // Build version number defined by the compiler:
@@ -187,7 +187,7 @@ type Server struct {
 	defaultCountryCode string
 
 	// Time before the call is dropped if not answered.
-	callEstablishmentTimeout int
+	callEstablishmentTimeout time.Duration
 
 	// ICE servers config (video calling)
 	iceServers []config.IceServer
@@ -491,14 +491,14 @@ func main() {
 	}()
 	logs.Info.Println("Push handlers configured:", pushHandlers)
 
-	if err = initVideoCalls(cfg.WebRTC); err != nil {
+	if err = globals.initVideoCalls(cfg.WebRTC); err != nil {
 		logs.Err.Fatal("Failed to init video calls: %w", err)
 	}
 
 	// Keep inactive LP sessions for 15 seconds
 	globals.sessionStore = NewSessionStore(idleSessionTimeout + 15*time.Second)
 	// The hub (the main message router)
-	globals.hub = newHub()
+	globals.hub = newHub(cfg)
 
 	// Start accepting cluster traffic.
 	if globals.cluster != nil {
@@ -633,7 +633,7 @@ func main() {
 			),
 		}
 		logs.Info.Println("Starting admin gRPC server at", cfg.Admin.Listen)
-		adminServer := NewAdminServer(logger, *cfg, store.Store.GetAdapter())
+		adminServer := NewAdminServer(logger, cfg, store.Store.GetAdapter())
 
 		grpcServer := grpc.NewServer(svrOpts...)
 		pbx.RegisterAdminServiceServer(grpcServer, adminServer)

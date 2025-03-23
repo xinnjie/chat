@@ -124,6 +124,28 @@ type Topic struct {
 
 	// Countdown timer for terminating iniatated (but not established) calls.
 	callEstablishmentTimer *time.Timer
+
+	callEstablishmentTimeout time.Duration
+}
+
+func NewTopic(name string, original string, callEstablishmentTimeout time.Duration) *Topic {
+	t := &Topic{
+		name:      name,
+		xoriginal: original,
+		// Indicates a proxy topic.
+		isProxy:   globals.cluster.isRemoteTopic(name),
+		sessions:  make(map[*Session]perSessionData),
+		clientMsg: make(chan *ClientComMessage, 192),
+		serverMsg: make(chan *ServerComMessage, 64),
+		reg:       make(chan *ClientComMessage, 256),
+		unreg:     make(chan *ClientComMessage, 256),
+		meta:      make(chan *ClientComMessage, 64),
+		perUser:   make(map[types.Uid]perUserData),
+		exit:      make(chan *shutDown, 1),
+
+		callEstablishmentTimeout: callEstablishmentTimeout,
+	}
+	return t
 }
 
 // perUserData holds topic's cache of per-subscriber data

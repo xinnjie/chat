@@ -769,7 +769,7 @@ func (s *Session) hello(msg *ClientComMessage) {
 			params["iceServers"] = globals.iceServers
 		}
 		if globals.callEstablishmentTimeout > 0 {
-			params["callTimeout"] = globals.callEstablishmentTimeout
+			params["callTimeout"] = int(globals.callEstablishmentTimeout.Seconds())
 		}
 
 		if s.proto == GRPC {

@@ -95,14 +95,14 @@ func callPartySession(sess *Session) *Session {
 	return sess
 }
 
-func initVideoCalls(cfg config.CallConfig) error {
+func (s *Server) initVideoCalls(cfg config.CallConfig) error {
 	if !cfg.Enabled {
 		logs.Info.Println("Video calls disabled")
 		return nil
 	}
 
 	if len(cfg.ICEServers) > 0 {
-		globals.iceServers = cfg.ICEServers
+		s.iceServers = cfg.ICEServers
 	} else if cfg.ICEServersFile != "" {
 		var iceConfig []config.IceServer
 		file, err := os.Open(cfg.ICEServersFile)
@@ -127,19 +127,19 @@ func initVideoCalls(cfg config.CallConfig) error {
 		}
 		file.Close()
 
-		globals.iceServers = iceConfig
+		s.iceServers = iceConfig
 	}
 
-	if len(globals.iceServers) == 0 {
+	if len(s.iceServers) == 0 {
 		return errors.New("no valid ICE cervers found")
 	}
 
-	globals.callEstablishmentTimeout = cfg.CallEstablishmentTimeout
-	if globals.callEstablishmentTimeout <= 0 {
-		globals.callEstablishmentTimeout = defaultCallEstablishmentTimeout
+	s.callEstablishmentTimeout = time.Duration(cfg.CallEstablishmentTimeout) * time.Second
+	if s.callEstablishmentTimeout <= 0 {
+		s.callEstablishmentTimeout = defaultCallEstablishmentTimeout
 	}
 
-	logs.Info.Println("Video calls enabled with", len(globals.iceServers), "ICE servers")
+	logs.Info.Println("Video calls enabled with", len(s.iceServers), "ICE servers")
 	return nil
 }
 
@@ -204,8 +204,8 @@ func (t *Topic) handleCallInvite(msg *ClientComMessage, asUid types.Uid) {
 		isOriginator: true,
 		sess:         callPartySession(msg.sess),
 	}
-	// Wait for constCallEstablishmentTimeout for the other side to accept the call.
-	t.callEstablishmentTimer.Reset(time.Duration(globals.callEstablishmentTimeout) * time.Second)
+	// Wait for callEstablishmentTimeout for the other side to accept the call.
+	t.callEstablishmentTimer.Reset(t.callEstablishmentTimeout)
 }
 
 // Handles events on existing video call (acceptance, termination, metadata exchange).
