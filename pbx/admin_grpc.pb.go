@@ -23,6 +23,7 @@ const (
 	AdminService_GetUser_FullMethodName         = "/pbx.AdminService/GetUser"
 	AdminService_UpdateUserState_FullMethodName = "/pbx.AdminService/UpdateUserState"
 	AdminService_DeleteUser_FullMethodName      = "/pbx.AdminService/DeleteUser"
+	AdminService_CreateGroupChat_FullMethodName = "/pbx.AdminService/CreateGroupChat"
 )
 
 // AdminServiceClient is the client API for AdminService service.
@@ -34,11 +35,13 @@ type AdminServiceClient interface {
 	// MakeUserRoot changes a user's authentication level to ROOT.
 	MakeUserRoot(ctx context.Context, in *MakeUserRootReq, opts ...grpc.CallOption) (*MakeUserRootResp, error)
 	// GetUser retrieves detailed information about a user.
-	GetUser(ctx context.Context, in *GetUserReq, opts ...grpc.CallOption) (*GetUserResp, error)
+	GetUser(ctx context.Context, in *GetUserReq, opts ...grpc.CallOption) (*User, error)
 	// UpdateUserState changes a user's account state (normal, suspended).
 	UpdateUserState(ctx context.Context, in *UpdateUserStateReq, opts ...grpc.CallOption) (*UpdateUserStateResp, error)
 	// DeleteUser permanently removes a user account.
 	DeleteUser(ctx context.Context, in *DeleteUserReq, opts ...grpc.CallOption) (*DeleteUserResp, error)
+	// CreateGroupChat creates a new group chat.
+	CreateGroupChat(ctx context.Context, in *CreateGroupChatReq, opts ...grpc.CallOption) (*CreateGroupChatResp, error)
 }
 
 type adminServiceClient struct {
@@ -59,9 +62,9 @@ func (c *adminServiceClient) MakeUserRoot(ctx context.Context, in *MakeUserRootR
 	return out, nil
 }
 
-func (c *adminServiceClient) GetUser(ctx context.Context, in *GetUserReq, opts ...grpc.CallOption) (*GetUserResp, error) {
+func (c *adminServiceClient) GetUser(ctx context.Context, in *GetUserReq, opts ...grpc.CallOption) (*User, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetUserResp)
+	out := new(User)
 	err := c.cc.Invoke(ctx, AdminService_GetUser_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -89,6 +92,16 @@ func (c *adminServiceClient) DeleteUser(ctx context.Context, in *DeleteUserReq, 
 	return out, nil
 }
 
+func (c *adminServiceClient) CreateGroupChat(ctx context.Context, in *CreateGroupChatReq, opts ...grpc.CallOption) (*CreateGroupChatResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateGroupChatResp)
+	err := c.cc.Invoke(ctx, AdminService_CreateGroupChat_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AdminServiceServer is the server API for AdminService service.
 // All implementations must embed UnimplementedAdminServiceServer
 // for forward compatibility.
@@ -98,11 +111,13 @@ type AdminServiceServer interface {
 	// MakeUserRoot changes a user's authentication level to ROOT.
 	MakeUserRoot(context.Context, *MakeUserRootReq) (*MakeUserRootResp, error)
 	// GetUser retrieves detailed information about a user.
-	GetUser(context.Context, *GetUserReq) (*GetUserResp, error)
+	GetUser(context.Context, *GetUserReq) (*User, error)
 	// UpdateUserState changes a user's account state (normal, suspended).
 	UpdateUserState(context.Context, *UpdateUserStateReq) (*UpdateUserStateResp, error)
 	// DeleteUser permanently removes a user account.
 	DeleteUser(context.Context, *DeleteUserReq) (*DeleteUserResp, error)
+	// CreateGroupChat creates a new group chat.
+	CreateGroupChat(context.Context, *CreateGroupChatReq) (*CreateGroupChatResp, error)
 	mustEmbedUnimplementedAdminServiceServer()
 }
 
@@ -116,7 +131,7 @@ type UnimplementedAdminServiceServer struct{}
 func (UnimplementedAdminServiceServer) MakeUserRoot(context.Context, *MakeUserRootReq) (*MakeUserRootResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method MakeUserRoot not implemented")
 }
-func (UnimplementedAdminServiceServer) GetUser(context.Context, *GetUserReq) (*GetUserResp, error) {
+func (UnimplementedAdminServiceServer) GetUser(context.Context, *GetUserReq) (*User, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetUser not implemented")
 }
 func (UnimplementedAdminServiceServer) UpdateUserState(context.Context, *UpdateUserStateReq) (*UpdateUserStateResp, error) {
@@ -124,6 +139,9 @@ func (UnimplementedAdminServiceServer) UpdateUserState(context.Context, *UpdateU
 }
 func (UnimplementedAdminServiceServer) DeleteUser(context.Context, *DeleteUserReq) (*DeleteUserResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteUser not implemented")
+}
+func (UnimplementedAdminServiceServer) CreateGroupChat(context.Context, *CreateGroupChatReq) (*CreateGroupChatResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateGroupChat not implemented")
 }
 func (UnimplementedAdminServiceServer) mustEmbedUnimplementedAdminServiceServer() {}
 func (UnimplementedAdminServiceServer) testEmbeddedByValue()                      {}
@@ -218,6 +236,24 @@ func _AdminService_DeleteUser_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AdminService_CreateGroupChat_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateGroupChatReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).CreateGroupChat(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_CreateGroupChat_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).CreateGroupChat(ctx, req.(*CreateGroupChatReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AdminService_ServiceDesc is the grpc.ServiceDesc for AdminService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -240,6 +276,10 @@ var AdminService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteUser",
 			Handler:    _AdminService_DeleteUser_Handler,
+		},
+		{
+			MethodName: "CreateGroupChat",
+			Handler:    _AdminService_CreateGroupChat_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -1,6 +1,7 @@
 syntax = "proto3";
 package pbx;
 import "model.proto";
+import "google/protobuf/timestamp.proto";
 
 // AdminService provides administrative functionality for managing the Tinode server.
 service AdminService {
@@ -8,13 +9,27 @@ service AdminService {
   rpc MakeUserRoot(MakeUserRootReq) returns (MakeUserRootResp) {}
   
   // GetUser retrieves detailed information about a user.
-  rpc GetUser(GetUserReq) returns (GetUserResp) {}
+  rpc GetUser(GetUserReq) returns (User) {}
   
   // UpdateUserState changes a user's account state (normal, suspended).
   rpc UpdateUserState(UpdateUserStateReq) returns (UpdateUserStateResp) {}
   
   // DeleteUser permanently removes a user account.
   rpc DeleteUser(DeleteUserReq) returns (DeleteUserResp) {}
+
+  // CreateGroupChat creates a new group chat.
+  rpc CreateGroupChat(CreateGroupChatReq) returns (CreateGroupChatResp) {}
+}
+
+
+// User represents a user account.
+message User {
+  string user_id = 1;
+  // Timestamp of the last time the user was seen online.
+  google.protobuf.Timestamp last_seen = 2;
+  
+  // Public information about the user. JSON string.
+  string public = 3;
 }
 
 // Request to promote a user to ROOT authentication level.
@@ -33,9 +48,6 @@ message GetUserReq {
   string user_id = 1;
 }
 
-// Response containing user information.
-message GetUserResp {
-}
 
 // AccountState defines possible states for a user account.
 enum AccountState {
@@ -71,4 +83,16 @@ message DeleteUserReq {
 
 // Response to a request to delete a user account.
 message DeleteUserResp {
+}
+
+// Request to create a new group chat.
+message CreateGroupChatReq {
+  // Create a new group chat on behalf of the user.
+  string user_id = 1;
+}
+
+// Response to a request to create a new group chat.
+message CreateGroupChatResp {
+  // Topic ID of the newly created group chat.
+  string topic_id = 1;
 }
