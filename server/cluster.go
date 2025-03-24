@@ -585,7 +585,7 @@ func (c *Cluster) TopicMaster(msg *ClusterReq, rejected *bool) error {
 }
 
 // TopicProxy is a gRPC endpoint at topic proxy which receives topic master responses.
-func (Cluster) TopicProxy(msg *ClusterResp, unused *bool) error {
+func (c * Cluster) TopicProxy(msg *ClusterResp, unused *bool) error {
 	// This cluster member received a response from the topic master to be forwarded to the topic.
 	// Find appropriate topic, send the message to it.
 	if t := globals.hub.topicGet(msg.RcptTo); t != nil {
@@ -772,8 +772,8 @@ func (c *Cluster) isRemoteTopic(topic string) bool {
 	return c.ring.Get(topic) != c.thisNodeName
 }
 
-// genLocalTopicName is just like genTopicName(), but the generated name belongs to the current cluster node.
-func (c *Cluster) genLocalTopicName() string {
+// GenerateLocalTopicName is just like genTopicName(), but the generated name belongs to the current cluster node.
+func (c *Cluster) GenerateLocalTopicName() string {
 	topic := genTopicName()
 	if c == nil {
 		// Cluster not initialized, all topics are local

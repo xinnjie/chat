@@ -33,15 +33,16 @@ const (
 // AdminService provides administrative functionality for managing the Tinode server.
 type AdminServiceClient interface {
 	// MakeUserRoot changes a user's authentication level to ROOT.
-	MakeUserRoot(ctx context.Context, in *MakeUserRootReq, opts ...grpc.CallOption) (*MakeUserRootResp, error)
+	MakeUserRoot(ctx context.Context, in *MakeUserRootRequest, opts ...grpc.CallOption) (*MakeUserRootResponse, error)
 	// GetUser retrieves detailed information about a user.
-	GetUser(ctx context.Context, in *GetUserReq, opts ...grpc.CallOption) (*User, error)
+	GetUser(ctx context.Context, in *GetUserRequest, opts ...grpc.CallOption) (*User, error)
 	// UpdateUserState changes a user's account state (normal, suspended).
-	UpdateUserState(ctx context.Context, in *UpdateUserStateReq, opts ...grpc.CallOption) (*UpdateUserStateResp, error)
+	UpdateUserState(ctx context.Context, in *UpdateUserStateRequest, opts ...grpc.CallOption) (*UpdateUserStateResponse, error)
 	// DeleteUser permanently removes a user account.
-	DeleteUser(ctx context.Context, in *DeleteUserReq, opts ...grpc.CallOption) (*DeleteUserResp, error)
-	// CreateGroupChat creates a new group chat.
-	CreateGroupChat(ctx context.Context, in *CreateGroupChatReq, opts ...grpc.CallOption) (*CreateGroupChatResp, error)
+	DeleteUser(ctx context.Context, in *DeleteUserRequest, opts ...grpc.CallOption) (*DeleteUserResponse, error)
+	// CreateGroupChat creates a new group chat on behalf of a user.
+	// Note that the user do not subscribe to the topic by default
+	CreateGroupChat(ctx context.Context, in *CreateGroupChatRequest, opts ...grpc.CallOption) (*CreateGroupChatResponse, error)
 }
 
 type adminServiceClient struct {
@@ -52,9 +53,9 @@ func NewAdminServiceClient(cc grpc.ClientConnInterface) AdminServiceClient {
 	return &adminServiceClient{cc}
 }
 
-func (c *adminServiceClient) MakeUserRoot(ctx context.Context, in *MakeUserRootReq, opts ...grpc.CallOption) (*MakeUserRootResp, error) {
+func (c *adminServiceClient) MakeUserRoot(ctx context.Context, in *MakeUserRootRequest, opts ...grpc.CallOption) (*MakeUserRootResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(MakeUserRootResp)
+	out := new(MakeUserRootResponse)
 	err := c.cc.Invoke(ctx, AdminService_MakeUserRoot_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -62,7 +63,7 @@ func (c *adminServiceClient) MakeUserRoot(ctx context.Context, in *MakeUserRootR
 	return out, nil
 }
 
-func (c *adminServiceClient) GetUser(ctx context.Context, in *GetUserReq, opts ...grpc.CallOption) (*User, error) {
+func (c *adminServiceClient) GetUser(ctx context.Context, in *GetUserRequest, opts ...grpc.CallOption) (*User, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(User)
 	err := c.cc.Invoke(ctx, AdminService_GetUser_FullMethodName, in, out, cOpts...)
@@ -72,9 +73,9 @@ func (c *adminServiceClient) GetUser(ctx context.Context, in *GetUserReq, opts .
 	return out, nil
 }
 
-func (c *adminServiceClient) UpdateUserState(ctx context.Context, in *UpdateUserStateReq, opts ...grpc.CallOption) (*UpdateUserStateResp, error) {
+func (c *adminServiceClient) UpdateUserState(ctx context.Context, in *UpdateUserStateRequest, opts ...grpc.CallOption) (*UpdateUserStateResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(UpdateUserStateResp)
+	out := new(UpdateUserStateResponse)
 	err := c.cc.Invoke(ctx, AdminService_UpdateUserState_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -82,9 +83,9 @@ func (c *adminServiceClient) UpdateUserState(ctx context.Context, in *UpdateUser
 	return out, nil
 }
 
-func (c *adminServiceClient) DeleteUser(ctx context.Context, in *DeleteUserReq, opts ...grpc.CallOption) (*DeleteUserResp, error) {
+func (c *adminServiceClient) DeleteUser(ctx context.Context, in *DeleteUserRequest, opts ...grpc.CallOption) (*DeleteUserResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(DeleteUserResp)
+	out := new(DeleteUserResponse)
 	err := c.cc.Invoke(ctx, AdminService_DeleteUser_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -92,9 +93,9 @@ func (c *adminServiceClient) DeleteUser(ctx context.Context, in *DeleteUserReq, 
 	return out, nil
 }
 
-func (c *adminServiceClient) CreateGroupChat(ctx context.Context, in *CreateGroupChatReq, opts ...grpc.CallOption) (*CreateGroupChatResp, error) {
+func (c *adminServiceClient) CreateGroupChat(ctx context.Context, in *CreateGroupChatRequest, opts ...grpc.CallOption) (*CreateGroupChatResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(CreateGroupChatResp)
+	out := new(CreateGroupChatResponse)
 	err := c.cc.Invoke(ctx, AdminService_CreateGroupChat_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -109,15 +110,16 @@ func (c *adminServiceClient) CreateGroupChat(ctx context.Context, in *CreateGrou
 // AdminService provides administrative functionality for managing the Tinode server.
 type AdminServiceServer interface {
 	// MakeUserRoot changes a user's authentication level to ROOT.
-	MakeUserRoot(context.Context, *MakeUserRootReq) (*MakeUserRootResp, error)
+	MakeUserRoot(context.Context, *MakeUserRootRequest) (*MakeUserRootResponse, error)
 	// GetUser retrieves detailed information about a user.
-	GetUser(context.Context, *GetUserReq) (*User, error)
+	GetUser(context.Context, *GetUserRequest) (*User, error)
 	// UpdateUserState changes a user's account state (normal, suspended).
-	UpdateUserState(context.Context, *UpdateUserStateReq) (*UpdateUserStateResp, error)
+	UpdateUserState(context.Context, *UpdateUserStateRequest) (*UpdateUserStateResponse, error)
 	// DeleteUser permanently removes a user account.
-	DeleteUser(context.Context, *DeleteUserReq) (*DeleteUserResp, error)
-	// CreateGroupChat creates a new group chat.
-	CreateGroupChat(context.Context, *CreateGroupChatReq) (*CreateGroupChatResp, error)
+	DeleteUser(context.Context, *DeleteUserRequest) (*DeleteUserResponse, error)
+	// CreateGroupChat creates a new group chat on behalf of a user.
+	// Note that the user do not subscribe to the topic by default
+	CreateGroupChat(context.Context, *CreateGroupChatRequest) (*CreateGroupChatResponse, error)
 	mustEmbedUnimplementedAdminServiceServer()
 }
 
@@ -128,19 +130,19 @@ type AdminServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedAdminServiceServer struct{}
 
-func (UnimplementedAdminServiceServer) MakeUserRoot(context.Context, *MakeUserRootReq) (*MakeUserRootResp, error) {
+func (UnimplementedAdminServiceServer) MakeUserRoot(context.Context, *MakeUserRootRequest) (*MakeUserRootResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method MakeUserRoot not implemented")
 }
-func (UnimplementedAdminServiceServer) GetUser(context.Context, *GetUserReq) (*User, error) {
+func (UnimplementedAdminServiceServer) GetUser(context.Context, *GetUserRequest) (*User, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetUser not implemented")
 }
-func (UnimplementedAdminServiceServer) UpdateUserState(context.Context, *UpdateUserStateReq) (*UpdateUserStateResp, error) {
+func (UnimplementedAdminServiceServer) UpdateUserState(context.Context, *UpdateUserStateRequest) (*UpdateUserStateResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateUserState not implemented")
 }
-func (UnimplementedAdminServiceServer) DeleteUser(context.Context, *DeleteUserReq) (*DeleteUserResp, error) {
+func (UnimplementedAdminServiceServer) DeleteUser(context.Context, *DeleteUserRequest) (*DeleteUserResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteUser not implemented")
 }
-func (UnimplementedAdminServiceServer) CreateGroupChat(context.Context, *CreateGroupChatReq) (*CreateGroupChatResp, error) {
+func (UnimplementedAdminServiceServer) CreateGroupChat(context.Context, *CreateGroupChatRequest) (*CreateGroupChatResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateGroupChat not implemented")
 }
 func (UnimplementedAdminServiceServer) mustEmbedUnimplementedAdminServiceServer() {}
@@ -165,7 +167,7 @@ func RegisterAdminServiceServer(s grpc.ServiceRegistrar, srv AdminServiceServer)
 }
 
 func _AdminService_MakeUserRoot_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(MakeUserRootReq)
+	in := new(MakeUserRootRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -177,13 +179,13 @@ func _AdminService_MakeUserRoot_Handler(srv interface{}, ctx context.Context, de
 		FullMethod: AdminService_MakeUserRoot_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AdminServiceServer).MakeUserRoot(ctx, req.(*MakeUserRootReq))
+		return srv.(AdminServiceServer).MakeUserRoot(ctx, req.(*MakeUserRootRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _AdminService_GetUser_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetUserReq)
+	in := new(GetUserRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -195,13 +197,13 @@ func _AdminService_GetUser_Handler(srv interface{}, ctx context.Context, dec fun
 		FullMethod: AdminService_GetUser_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AdminServiceServer).GetUser(ctx, req.(*GetUserReq))
+		return srv.(AdminServiceServer).GetUser(ctx, req.(*GetUserRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _AdminService_UpdateUserState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(UpdateUserStateReq)
+	in := new(UpdateUserStateRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -213,13 +215,13 @@ func _AdminService_UpdateUserState_Handler(srv interface{}, ctx context.Context,
 		FullMethod: AdminService_UpdateUserState_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AdminServiceServer).UpdateUserState(ctx, req.(*UpdateUserStateReq))
+		return srv.(AdminServiceServer).UpdateUserState(ctx, req.(*UpdateUserStateRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _AdminService_DeleteUser_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DeleteUserReq)
+	in := new(DeleteUserRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -231,13 +233,13 @@ func _AdminService_DeleteUser_Handler(srv interface{}, ctx context.Context, dec 
 		FullMethod: AdminService_DeleteUser_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AdminServiceServer).DeleteUser(ctx, req.(*DeleteUserReq))
+		return srv.(AdminServiceServer).DeleteUser(ctx, req.(*DeleteUserRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _AdminService_CreateGroupChat_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CreateGroupChatReq)
+	in := new(CreateGroupChatRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -249,7 +251,7 @@ func _AdminService_CreateGroupChat_Handler(srv interface{}, ctx context.Context,
 		FullMethod: AdminService_CreateGroupChat_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AdminServiceServer).CreateGroupChat(ctx, req.(*CreateGroupChatReq))
+		return srv.(AdminServiceServer).CreateGroupChat(ctx, req.(*CreateGroupChatRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }

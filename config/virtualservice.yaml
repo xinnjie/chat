@@ -19,3 +19,27 @@ spec:
             host: tinode
             port:
               number: 6060
+---
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: tinodechat-admin-virtualservice
+  namespace: watchbeats
+spec:
+  hosts:
+    - "adminchat.xinnjiedev.com"
+  gateways:
+    - istio-system/gateway
+  http:
+    - match:
+        - uri:
+            prefix: ''
+      route:
+        - destination:
+            host: tinode
+            port:
+              number: 16061
+      retries:
+        attempts: 3
+        perTryTimeout: 2s
+      timeout: 30s

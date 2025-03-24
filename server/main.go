@@ -633,7 +633,7 @@ func main() {
 			),
 		}
 		logs.Info.Println("Starting admin gRPC server at", cfg.Admin.Listen)
-		adminServer := NewAdminServer(logger, cfg, store.Store.GetAdapter())
+		adminServer := NewAdminServer(logger, cfg, store.Store.GetAdapter(), globals.cluster)
 
 		grpcServer := grpc.NewServer(svrOpts...)
 		pbx.RegisterAdminServiceServer(grpcServer, adminServer)

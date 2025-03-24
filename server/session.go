@@ -618,7 +618,7 @@ func (s *Session) subscribe(msg *ClientComMessage) {
 	if strings.HasPrefix(msg.Original, "new") || strings.HasPrefix(msg.Original, "nch") {
 		// Request to create a new group/channel topic.
 		// If we are in a cluster, make sure the new topic belongs to the current node.
-		msg.RcptTo = globals.cluster.genLocalTopicName()
+		msg.RcptTo = globals.cluster.GenerateLocalTopicName()
 	} else {
 		var resp *ServerComMessage
 		msg.RcptTo, resp = s.expandTopicName(msg)

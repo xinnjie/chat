@@ -1184,6 +1184,7 @@ func InfoFound(id, topic string, ts time.Time) *ServerComMessage {
 }
 
 // 4xx Errors
+// TODO(xinnjie) return error, then convert to ServerComMessage
 
 // ErrMalformed request malformed (400).
 func ErrMalformed(id, topic string, ts time.Time) *ServerComMessage {

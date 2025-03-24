@@ -499,14 +499,14 @@ func (usersMapper) GetUnvalidated(lastUpdatedBefore time.Time, limit int) ([]typ
 
 // TopicsPersistenceInterface is an interface which defines methods for persistent storage of topics.
 type TopicsPersistenceInterface interface {
-	Create(topic *types.Topic, owner types.Uid, private interface{}) error
+	Create(topic *types.Topic, owner types.Uid, private any) error
 	CreateP2P(initiator, invited *types.Subscription) error
 	Get(topic string) (*types.Topic, error)
 	GetUsers(topic string, opts *types.QueryOpt) ([]types.Subscription, error)
 	GetUsersAny(topic string, opts *types.QueryOpt) ([]types.Subscription, error)
 	GetSubs(topic string, opts *types.QueryOpt) ([]types.Subscription, error)
 	GetSubsAny(topic string, opts *types.QueryOpt) ([]types.Subscription, error)
-	Update(topic string, update map[string]interface{}) error
+	Update(topic string, update map[string]any) error
 	OwnerChange(topic string, newOwner types.Uid) error
 	Delete(topic string, isChan, hard bool) error
 }
@@ -518,7 +518,7 @@ type topicsMapper struct{}
 var Topics TopicsPersistenceInterface
 
 // Create creates a topic and owner's subscription to it.
-func (topicsMapper) Create(topic *types.Topic, owner types.Uid, private interface{}) error {
+func (topicsMapper) Create(topic *types.Topic, owner types.Uid, private any) error {
 
 	topic.InitTimes()
 	topic.TouchedAt = topic.CreatedAt
