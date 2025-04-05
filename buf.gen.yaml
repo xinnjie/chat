@@ -13,3 +13,15 @@ plugins:
     out: pbx
     opt:
       - paths=source_relative
+    # Swift
+  - remote: buf.build/apple/swift:v1.28.2
+    out: Sources/TinodePbx
+    include_imports: true
+    opt:
+      - Visibility=Public
+  - remote: buf.build/grpc/swift:v1.24.2
+    out: Sources/TinodePbx
+    opt:
+      - Client=true
+      - Server=false
+      - Visibility=Public
